@@ -18,7 +18,7 @@ import { signInWithGoogle, signUp } from "@/firebase/firebaseAuth";
 import { useState } from "react";
 import { updateProfile } from "firebase/auth";
 import { auth } from "@/firebase/firebase";
-import { useRouter } from "next/router";
+import { useRouter } from "next/compat/router";
 import { ensureUserDocExists } from "@/utils/userData";
 
 export default function SignupPage() {
@@ -36,14 +36,14 @@ export default function SignupPage() {
           displayName: username,
         });
       ensureUserDocExists();
-      router.push("/");
+      if (router) router.push("/");
     }
   };
 
   const googleSignIn = () => {
     signInWithGoogle();
     ensureUserDocExists();
-    router.push("/");
+    if (router) router.push("/");
   };
 
   return (
