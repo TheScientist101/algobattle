@@ -43,6 +43,10 @@ func (p *Portfolio) Buy(transaction *Transaction) error {
 		return fmt.Errorf("cannot buy negative number of shares")
 	}
 
+	if p.Holdings == nil {
+		p.Holdings = make(map[string]*Holding)
+	}
+
 	p.Cash -= transaction.NumShares * transaction.UnitCost
 	if holding, ok := p.Holdings[transaction.Ticker]; !ok {
 		p.Holdings[transaction.Ticker] = &Holding{
@@ -164,7 +168,7 @@ func NewBotWorker(db *firestore.Client, tiingo *Tiingo) *BotWorker {
 	}()
 
 	// TODO: Change this to a webhook
-	accountValuer := time.NewTicker(time.Second * 72)
+	accountValuer := time.NewTicker(time.Second * 10)
 	go func() {
 		for {
 			select {
@@ -180,6 +184,26 @@ func NewBotWorker(db *firestore.Client, tiingo *Tiingo) *BotWorker {
 						portfolio := &Portfolio{}
 						doc.DataTo(portfolio)
 
+						// Noise Generator
+						//portfolio.HistoricalAccountValue = make([]*AccountValueHistory, 0)
+						//currTime := time.Date(2025, 3, 23, 0, 0, 0, 0, time.UTC)
+						//var lastValue float64 = 100
+						//for currTime.Before(time.Now()) {
+						//	portfolio.HistoricalAccountValue = append(portfolio.HistoricalAccountValue, &AccountValueHistory{currTime, lastValue})
+						//	currTime = currTime.Add(time.Hour * 24)
+						//	lastValue += (rand.Float64() - 0.44) * 50
+						//}
+						//
+						//portfolio.AccountValue = portfolio.HistoricalAccountValue[len(portfolio.HistoricalAccountValue)-1].Value
+						//
+						//_, err = doc.Ref.Update(context.Background(), []firestore.Update{
+						//	{Path: "accountValue", Value: portfolio.AccountValue},
+						//	{Path: "historicalAccountValue", Value: portfolio.HistoricalAccountValue},
+						//})
+						//if err != nil {
+						//	log.Println(err)
+						//}
+
 						portfolio.AccountValue = portfolio.Cash
 
 						for ticker, holding := range portfolio.Holdings {
@@ -190,18 +214,28 @@ func NewBotWorker(db *firestore.Client, tiingo *Tiingo) *BotWorker {
 							}
 
 							portfolio.AccountValue += holding.NumShares * price
-							portfolio.HistoricalAccountValue = append(portfolio.HistoricalAccountValue, &AccountValueHistory{
-								Date:  time.Now(),
-								Value: portfolio.AccountValue,
-							})
+							if portfolio.HistoricalAccountValue[len(portfolio.HistoricalAccountValue)-1].Date.Add(time.Hour * 24).Before(time.Now()) {
+								portfolio.HistoricalAccountValue = append(portfolio.HistoricalAccountValue, &AccountValueHistory{
+									Date:  time.Now(),
+									Value: portfolio.AccountValue,
+								})
+							} else {
+								portfolio.HistoricalAccountValue[len(portfolio.HistoricalAccountValue)-1].Value = portfolio.AccountValue
+								portfolio.HistoricalAccountValue[len(portfolio.HistoricalAccountValue)-1].Date = time.Now()
+							}
 						}
 
-						doc.Ref.Update(context.Background(), []firestore.Update{
+						_, err = doc.Ref.Update(context.Background(), []firestore.Update{
 							{Path: "accountValue", Value: portfolio.AccountValue},
 							{Path: "historicalAccountValue", Value: portfolio.HistoricalAccountValue},
 						})
+						if err != nil {
+							log.Println(err)
+						}
 					}()
 				}
+
+				return
 			}
 		}
 	}()
@@ -430,7 +464,7 @@ func (bw *BotWorker) MakeTransaction(c *gin.Context) {
 		UnitCost:  cost,
 		Ticker:    request.Ticker,
 		Action:    request.Action,
-		Owner:     ref,
+		Bot:       ref,
 	}
 
 	err = portfolio.Execute(transaction)

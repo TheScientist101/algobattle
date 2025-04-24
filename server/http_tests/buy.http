@@ -1,6 +1,6 @@
 ### GET request to example server
 POST http://localhost:8080/transact
-Authorization: d003a945-f686-4f30-abf8-dd3769dae0a6
+Authorization: {{api_key}}
 Content-Type: application/json
 
 {

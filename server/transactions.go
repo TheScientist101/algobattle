@@ -11,5 +11,5 @@ type Transaction struct {
 	UnitCost  float64                `json:"unitCost" firestore:"unitCost"`
 	Ticker    string                 `json:"ticker" firestore:"ticker"`
 	Action    string                 `json:"action" firestore:"action"`
-	Owner     *firestore.DocumentRef `json:"-" firestore:"owner"`
+	Bot       *firestore.DocumentRef `json:"-" firestore:"bot"`
 }
