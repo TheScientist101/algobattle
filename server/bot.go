@@ -141,7 +141,7 @@ func NewBotWorker(db *firestore.Client, tiingo *Tiingo) *BotWorker {
 		latestPrices: make(map[string]float64),
 	}
 
-	dataDownloader := time.NewTicker(time.Second * 72)
+	dataDownloader := time.NewTicker(time.Minute * 5)
 	go func() {
 		for {
 			select {
@@ -214,15 +214,22 @@ func NewBotWorker(db *firestore.Client, tiingo *Tiingo) *BotWorker {
 							}
 
 							portfolio.AccountValue += holding.NumShares * price
-							if portfolio.HistoricalAccountValue[len(portfolio.HistoricalAccountValue)-1].Date.Add(time.Hour * 24).Before(time.Now()) {
-								portfolio.HistoricalAccountValue = append(portfolio.HistoricalAccountValue, &AccountValueHistory{
-									Date:  time.Now(),
-									Value: portfolio.AccountValue,
-								})
-							} else {
-								portfolio.HistoricalAccountValue[len(portfolio.HistoricalAccountValue)-1].Value = portfolio.AccountValue
-								portfolio.HistoricalAccountValue[len(portfolio.HistoricalAccountValue)-1].Date = time.Now()
-							}
+						}
+
+						if len(portfolio.HistoricalAccountValue) == 0 {
+							portfolio.HistoricalAccountValue = make([]*AccountValueHistory, 0)
+							portfolio.HistoricalAccountValue = append(portfolio.HistoricalAccountValue, &AccountValueHistory{
+								Date:  time.Now(),
+								Value: portfolio.AccountValue,
+							})
+						} else if portfolio.HistoricalAccountValue[len(portfolio.HistoricalAccountValue)-1].Date.Add(time.Hour * 24).Before(time.Now()) {
+							portfolio.HistoricalAccountValue = append(portfolio.HistoricalAccountValue, &AccountValueHistory{
+								Date:  time.Now(),
+								Value: portfolio.AccountValue,
+							})
+						} else {
+							portfolio.HistoricalAccountValue[len(portfolio.HistoricalAccountValue)-1].Value = portfolio.AccountValue
+							portfolio.HistoricalAccountValue[len(portfolio.HistoricalAccountValue)-1].Date = time.Now()
 						}
 
 						_, err = doc.Ref.Update(context.Background(), []firestore.Update{

@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 const baseURL = "https://api.tiingo.com"
@@ -39,6 +40,48 @@ func NewTiingo(token string) *Tiingo {
 
 func (t *Tiingo) AddTickers(newTickers ...string) {
 	t.tickers.Insert(newTickers...)
+}
+
+func (t *Tiingo) currPrice(tickers ...string) float64 {
+	//iex/<ticker>/prices?startDate=2019-01-02&resampleFreq=5min
+	//tickers -> a,b,c
+	tickersStr := strings.Join(tickers, ",")
+
+	request, err := http.NewRequest(http.MethodGet,
+		fmt.Sprintf("%s/iex/?tickers=%s&token=%s",
+			baseURL,
+			tickersStr,
+			t.Token,
+		),
+		nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	request.Header.Add("Content-Type", "application/json")
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		if response.StatusCode == http.StatusNotFound {
+			log.Println(tickers, "not found")
+		}
+		log.Fatal(response.Status+" when fetching ", tickers)
+	}
+
+	result := make([]struct {
+		AskPrice float64 `json:"askPrice"`
+	}, 0)
+
+	if err = json.NewDecoder(response.Body).Decode(&result); err != nil {
+		log.Fatal(err)
+	}
+
+	return result[0].AskPrice
 }
 
 func (t *Tiingo) historicalDaily(ticker string) error {
