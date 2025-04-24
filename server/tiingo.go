@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"encoding/gob"
 	"encoding/json"
@@ -22,7 +23,7 @@ const dailyCacheGOB = "dailycache.gob"
 
 type Tiingo struct {
 	Token      string
-	Tickers    []string
+	tickers    *TreeSet[string]
 	DailyCache *History
 	Indicators []Indicator
 }
@@ -30,14 +31,14 @@ type Tiingo struct {
 func NewTiingo(token string) *Tiingo {
 	return &Tiingo{
 		token,
-		make([]string, 0),
+		NewTreeSet[string](cmp.Compare),
 		NewHistory(),
 		make([]Indicator, 0),
 	}
 }
 
-func (t *Tiingo) AddTickers(tickers ...string) {
-	t.Tickers = append(t.Tickers, tickers...)
+func (t *Tiingo) AddTickers(newTickers ...string) {
+	t.tickers.Insert(newTickers...)
 }
 
 func (t *Tiingo) historicalDaily(ticker string) error {
@@ -97,7 +98,7 @@ func (t *Tiingo) LoadData(useJSON bool) error {
 	errs, _ := errgroup.WithContext(context.Background())
 
 	log.Println("Downloading uncached tickers...")
-	for _, ticker := range t.Tickers {
+	for ticker := range t.tickers.All() {
 		if _, ok := t.DailyCache.Tickers[ticker]; !ok {
 			errs.Go(func() error {
 				return t.historicalDaily(ticker)
@@ -106,6 +107,24 @@ func (t *Tiingo) LoadData(useJSON bool) error {
 	}
 
 	err = errs.Wait()
+
+	if err := t.SaveCaches(); err != nil {
+		return err
+	}
+
+	return err
+}
+
+func (t *Tiingo) DownloadAllTickers() error {
+	errs, _ := errgroup.WithContext(context.Background())
+
+	for ticker := range t.tickers.All() {
+		errs.Go(func() error {
+			return t.historicalDaily(ticker)
+		})
+	}
+
+	err := errs.Wait()
 
 	if err := t.SaveCaches(); err != nil {
 		return err

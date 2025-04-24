@@ -1,0 +1,5 @@
+### GET request to example server
+GET http://localhost:8080/portfolio
+Authorization: d003a945-f686-4f30-abf8-dd3769dae0a6
+
+###

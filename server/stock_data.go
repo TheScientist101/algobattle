@@ -17,7 +17,7 @@ type Indicator interface {
 }
 
 type PackedPeriod struct {
-	Date        time.Time `json:"date"`
+	Date        time.Time `json:"Date"`
 	Open        float64   `json:"open"`
 	High        float64   `json:"high"`
 	Low         float64   `json:"low"`
@@ -108,18 +108,22 @@ type TickerMeta struct {
 }
 
 type Row struct {
-	Date time.Time                           `json:"date"`
+	Date time.Time                           `json:"Date"`
 	Data *xsync.MapOf[string, *TickerPeriod] `json:"data"`
 }
 
+func (r Row) Compare(other *Row) int {
+	return r.Date.Compare(other.Date)
+}
+
 type PackedRow struct {
-	Date time.Time                `json:"date"`
+	Date time.Time                `json:"Date"`
 	Data map[string]*TickerPeriod `json:"data"`
 }
 
 func (r *Row) UnmarshalJSON(bytes []byte) error {
 	temp := &struct {
-		Date time.Time                `json:"date"`
+		Date time.Time                `json:"Date"`
 		Data map[string]*TickerPeriod `json:"data"`
 	}{}
 
@@ -160,7 +164,7 @@ func (pr *PackedRow) Unpack() *Row {
 }
 
 // History Contains TickerPeriod info plus Indicators, each history represents one ticker
-// TODO: one array of rows sorted by date, each row is a pair of a date and Period, insertion sort
+// TODO: one array of rows sorted by Date, each row is a pair of a Date and Period, insertion sort
 type History struct {
 	Tickers map[string]TickerMeta `json:"tickers"`
 	Rows    []*Row                `json:"rows"`

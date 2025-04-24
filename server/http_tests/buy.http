@@ -1,0 +1,11 @@
+### GET request to example server
+POST http://localhost:8080/transact
+Authorization: d003a945-f686-4f30-abf8-dd3769dae0a6
+Content-Type: application/json
+
+{
+  "action": "buy",
+  "numShares": 1,
+  "ticker": "AAPL"
+}
+###
