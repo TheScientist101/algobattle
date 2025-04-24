@@ -20,31 +20,61 @@ import { updateProfile } from "firebase/auth";
 import { auth } from "@/firebase/firebase";
 import { useRouter } from "next/compat/router";
 import { ensureUserDocExists } from "@/utils/userData";
+import LoadingScreen from "@/components/loading";
 
 export default function SignupPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmedPassword, setConfirmedPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [displayError, setDisplayError] = useState("");
+
   const user = auth.currentUser;
   const router = useRouter();
 
   const createAccount = async () => {
     if (username && password && password === confirmedPassword) {
-      signUp(username, password);
-      if (user)
-        await updateProfile(user, {
-          displayName: username,
-        });
-      ensureUserDocExists();
-      if (router) router.push("/");
+      try {
+        setLoading(true);
+        signUp(username, password);
+        if (user)
+          await updateProfile(user, {
+            displayName: username,
+          });
+        ensureUserDocExists();
+        if (router) router.push("/");
+      } catch (error) {
+        console.error(error);
+        if (error instanceof Error) {
+          setDisplayError(error.message);
+        } else {
+          setDisplayError("Something went wrong.");
+        }
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
   const googleSignIn = () => {
-    signInWithGoogle();
-    ensureUserDocExists();
-    if (router) router.push("/");
+    try {
+      setLoading(true);
+      signInWithGoogle();
+      ensureUserDocExists();
+      if (router) router.push("/");
+    } catch (error) {
+      console.error(error);
+      if (error instanceof Error) {
+        setDisplayError(error.message);
+      } else {
+        setDisplayError("Something went wrong.");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
+
+  if (loading) return <LoadingScreen />;
 
   return (
     <div className="flex min-h-screen w-full items-center justify-center dark">
@@ -52,12 +82,13 @@ export default function SignupPage() {
         <div className="flex flex-col items-center gap-2 text-center">
           <div className="flex items-center gap-2 text-2xl font-semibold">
             <ArrowRightIcon className="h-6 w-6" />
-            <span>Acme Inc.</span>
+            <span>AlgoBattle</span>
           </div>
           <h1 className="text-3xl font-bold text-white">Create an account</h1>
           <p className="text-muted-foreground">
             Enter your information to get started
           </p>
+          {displayError && <p className="text-red-50">{displayError}</p>}
         </div>
         <Card>
           <CardHeader>

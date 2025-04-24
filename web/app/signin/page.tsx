@@ -17,29 +17,61 @@ import { signIn, signInWithGoogle } from "@/firebase/firebaseAuth";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ensureUserDocExists } from "@/utils/userData";
+import LoadingScreen from "@/components/loading";
 
 export default function SigninPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [displayError, setDisplayError] = useState("");
   const router = useRouter();
 
   const signInUsernamePassword = async () => {
-    await signIn(username, password);
-    ensureUserDocExists();
-    router.push('/');
+    try {
+      setLoading(true);
+      await signIn(username, password);
+      ensureUserDocExists();
+      router.push("/");
+    } catch (error) {
+      console.error(error);
+      if (error instanceof Error) {
+        setDisplayError(error.message);
+      } else {
+        setDisplayError("Something went wrong.");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const googleSignIn = () => {
-    signInWithGoogle();
-    ensureUserDocExists();
-    router.push('/');
-  }
+    try {
+      setLoading(true);
+      signInWithGoogle();
+      ensureUserDocExists();
+      router.push("/");
+    } catch (error) {
+      console.error(error);
+      if (error instanceof Error) {
+        setDisplayError(error.message);
+      } else {
+        setDisplayError("Something went wrong.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) return <LoadingScreen />;
 
   return (
     <div className="flex min-h-screen w-full items-center justify-center dark">
       <div className="grid w-150 gap-6">
         <div className="flex flex-col items-center gap-4 text-center">
-          <h1 className="text-3xl font-bold text-white">Welcome back</h1>
+          {displayError && <p className="text-red-50">{displayError}</p>}
+          <h1 className="text-3xl font-bold text-white">
+            Welcome to AlgoBattle
+          </h1>
           <p className="text-muted-foreground">
             Enter your credentials to access your account
           </p>
@@ -63,16 +95,18 @@ export default function SigninPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="bob"
+                placeholder="johndoe"
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
               />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="email">Password</Label>
               <Input
                 id="password"
                 type="password"
+                placeholder="password123"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -80,7 +114,11 @@ export default function SigninPage() {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col">
-            <Button className="w-full" size="lg" onClick={signInUsernamePassword}>
+            <Button
+              className="w-full"
+              size="lg"
+              onClick={signInUsernamePassword}
+            >
               Login
             </Button>
 

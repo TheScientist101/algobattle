@@ -1,9 +1,11 @@
-import { DocumentReference, Timestamp } from "firebase/firestore";
+import { DocumentReference } from "firebase/firestore";
 
 export type Bot = {
   name: string;
   apiKey: string;
-  cash: number
+  cash: number;
+  accountValue: number;
+  holdings: [];
   owner: string;
   transactions: DocumentReference[];
   historicalAccountValue: [];
@@ -17,16 +19,6 @@ export type Trade = {
   unitCost: number;
   time: Date;
 }
-
-export type HistoricalValueEntry = {
-  date: Date;
-  value: number;
-};
-
-export type HistoricalValueEntryFirebase = {
-  date: Timestamp;
-  value: number;
-};
 
 export type WithBot = {
   botId: string;

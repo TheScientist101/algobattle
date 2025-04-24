@@ -112,3 +112,10 @@ export async function getTradesForBot(botId: string): Promise<Trade[]> {
 
   return trades;
 }
+
+
+export async function getBotData(botId:string): Promise<Bot> {
+  const botRef = doc(db, "bots", botId);
+  const botSnap = await getDoc(botRef);
+  return botSnap.data() as Bot;
+}

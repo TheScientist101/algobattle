@@ -74,7 +74,7 @@ export function TradeTable({ botId }: WithBot) {
       setData(trades);
     };
     get();
-  }, [botId, data]);
+  }, [botId]);
 
   const table = useReactTable({
     data,
