@@ -65,7 +65,7 @@ export default function SigninPage() {
   if (loading) return <LoadingScreen />;
 
   return (
-    <div className="flex min-h-screen w-full items-center justify-center dark">
+    <div className="flex min-h-screen items-center justify-center dark">
       <div className="grid w-150 gap-6">
         <div className="flex flex-col items-center gap-4 text-center">
           {displayError && <p className="text-red-50">{displayError}</p>}
@@ -83,7 +83,7 @@ export default function SigninPage() {
               Don&apos;t have an account?{" "}
               <Link
                 href="/signup"
-                className="underline underline-offset-2 hover:text-primary"
+                className="underline underline-offset-2"
               >
                 Sign up
               </Link>

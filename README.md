@@ -77,7 +77,7 @@ go run urjith.dev/algobattle
 
 | Name             |  Role / Contribution                                      |
 |------------------|-----------------------------------------------------------|
-| Abhinav Devarakonda|  I built the web application of AlgoBattle, including authentication pages and a dashboard containing information on all the user's trading bots, including their value over time, their transactions, their api keys, and they cash they have.               |
+| Abhinav Devarakonda|  I built the web application of AlgoBattle, including authentication pages and a dashboard containing information on all the user's trading bots, including their value over time, their transactions, their api keys, their account value, and the cash they have. Furthermore, I created a learboard page that shows which bots have made the most money.               |
 | Urjith Mishra| I built the server-side code that any bot you write will interface with. This code also generates the value histories that are viewed on the web dashboard page, executes trades, calculates account values, provides stock pricing data, and validates API keys.|
 
 

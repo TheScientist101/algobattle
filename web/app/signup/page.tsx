@@ -16,8 +16,6 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { signInWithGoogle, signUp } from "@/firebase/firebaseAuth";
 import { useState } from "react";
-import { updateProfile } from "firebase/auth";
-import { auth } from "@/firebase/firebase";
 import { useRouter } from "next/compat/router";
 import { ensureUserDocExists } from "@/utils/userData";
 import LoadingScreen from "@/components/loading";
@@ -28,8 +26,6 @@ export default function SignupPage() {
   const [confirmedPassword, setConfirmedPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [displayError, setDisplayError] = useState("");
-
-  const user = auth.currentUser;
   const router = useRouter();
 
   const createAccount = async () => {
@@ -37,10 +33,6 @@ export default function SignupPage() {
       try {
         setLoading(true);
         signUp(username, password);
-        if (user)
-          await updateProfile(user, {
-            displayName: username,
-          });
         ensureUserDocExists();
         if (router) router.push("/");
       } catch (error) {
@@ -123,10 +115,6 @@ export default function SignupPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
-              <p className="text-xs text-muted-foreground">
-                Password must be at least 8 characters long and include a number
-                and a special character.
-              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirm-password">Confirm Password</Label>

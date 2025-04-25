@@ -3,18 +3,17 @@
 import { db } from "@/firebase/firebase";
 import {
   arrayUnion,
+  collection,
   doc,
   DocumentReference,
   getDoc,
+  getDocs,
   setDoc,
   Timestamp,
   updateDoc,
 } from "firebase/firestore";
 import { v4 } from "uuid";
-import {
-  Bot,
-  Trade,
-} from "./types";
+import { Bot, LeaderboardEntry, Trade } from "./types";
 
 export async function createBot(botName: string, user: string) {
   if (!user) {
@@ -71,7 +70,9 @@ export async function getBots(user: string): Promise<Bot[]> {
   return bots;
 }
 
-export async function getBotHistory(botId: string): Promise<{ date: string; value: number }[]> {
+export async function getBotHistory(
+  botId: string
+): Promise<{ date: string; value: number }[]> {
   const botRef = doc(db, "bots", botId);
   const botSnap = await getDoc(botRef);
 
@@ -81,11 +82,10 @@ export async function getBotHistory(botId: string): Promise<{ date: string; valu
   const rawHistory = data.historicalAccountValue ?? [];
 
   return rawHistory.map((item: { date: Timestamp; value: number }) => ({
-    date: item.date.toDate().toISOString(), 
+    date: item.date.toDate().toISOString(),
     value: item.value,
   }));
 }
-
 
 export async function getTradesForBot(botId: string): Promise<Trade[]> {
   const botRef = doc(db, "bots", botId);
@@ -113,9 +113,48 @@ export async function getTradesForBot(botId: string): Promise<Trade[]> {
   return trades;
 }
 
-
-export async function getBotData(botId:string): Promise<Bot> {
+export async function getBotData(botId: string): Promise<Bot> {
   const botRef = doc(db, "bots", botId);
   const botSnap = await getDoc(botRef);
   return botSnap.data() as Bot;
+}
+
+export async function getLeaderboardEntries(): Promise<LeaderboardEntry[]> {
+  const leaderboardSnaps = await getDocs(collection(db, "bots"));
+  const entries: LeaderboardEntry[] = [];
+
+  for (const snapshot of leaderboardSnaps.docs) {
+    const data = snapshot.data();
+    const values = Array.isArray(data.historicalAccountValue)
+      ? data.historicalAccountValue.map(
+          (entry: { date: Timestamp; value: number }) => ({
+            value: entry.value,
+            date: entry.date
+          })
+        )
+      : [];
+
+    const userId = typeof data.owner === "string" ? data.owner : "";
+    let displayName = userId;
+
+    if (userId) {
+      try {
+        const userDocRef = doc(db, "users", userId);
+        const userSnap = await getDoc(userDocRef);
+        if (userSnap.exists()) {
+          displayName = userSnap.data().displayName || userId;
+        }
+      } catch (error) {
+        console.warn("Failed to fetch user doc:", error);
+      }
+    }
+
+    entries.push({
+      name: data.name,
+      user: displayName,
+      historicalAccountValue: values,
+    });
+  }
+
+  return entries;
 }

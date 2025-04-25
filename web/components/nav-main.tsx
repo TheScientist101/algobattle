@@ -23,6 +23,7 @@ import {
 import { Input } from "./ui/input";
 import { createBot } from "@/utils/botData";
 import { useAuth } from "@/hooks/authContext";
+import { useRouter } from "next/navigation";
 
 export function NavMain({
   items,
@@ -35,12 +36,17 @@ export function NavMain({
 }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
+  const router = useRouter();
   const { user } = useAuth();
 
   const createNewBot = async () => {
     await createBot(name, user?.uid as string);
     setOpen(false);
     setName("")
+  }
+
+  const redirect = (url:string) => {
+    router.push(url);
   }
 
   return (
@@ -94,7 +100,7 @@ export function NavMain({
         <SidebarMenu>
           {items.map((item) => (
             <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton tooltip={item.title}>
+              <SidebarMenuButton tooltip={item.title} onClick={() => redirect(item.url)}>
                 {item.icon && <item.icon />}
                 <span>{item.title}</span>
               </SidebarMenuButton>

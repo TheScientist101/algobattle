@@ -1,4 +1,4 @@
-import { DocumentReference } from "firebase/firestore";
+import { DocumentReference, Timestamp } from "firebase/firestore";
 
 export type Bot = {
   name: string;
@@ -18,6 +18,13 @@ export type Trade = {
   numShares: number;
   unitCost: number;
   time: Date;
+}
+
+export type LeaderboardEntry = {
+  user: string;
+  name: string;
+  historicalAccountValue: { date: Timestamp; value: number }[]
+
 }
 
 export type WithBot = {

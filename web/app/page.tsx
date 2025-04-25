@@ -27,27 +27,32 @@ export default function Page() {
 
   useEffect(() => {
     const fetchBots = async () => {
+      setLoading(true);
       const data = await getBots(user?.uid as string);
       setCards(data);
       if (data.length > 0) {
         setSelectedKey(data[0].apiKey);
       }
+      setLoading(false);
     };
-    setLoading(true);
-    if (user?.uid) fetchBots();
-    setLoading(false);
+
+    if (user?.uid) {
+      fetchBots();
+    }
   }, [user?.uid]);
 
   useEffect(() => {
-    const fetchBots = async () => {
-      if (selectedKey) setCurrBot(await getBotData(selectedKey));
+    const fetchBotData = async () => {
+      if (selectedKey) {
+        setLoading(true);
+        const data = await getBotData(selectedKey);
+        setCurrBot(data);
+        setLoading(false);
+      }
     };
-    setLoading(true);
-    fetchBots();
-    setLoading(false);
+
+    fetchBotData();
   }, [selectedKey]);
-  
-  if (loading) return <LoadingScreen />;
 
   return (
     <SidebarProvider className="dark">
@@ -55,7 +60,7 @@ export default function Page() {
       <SidebarInset>
         <div className="flex flex-1 flex-col px-8 relative">
           {selectedKey && currBot && (
-            <Card className="ml-4 w-270 my-5">
+            <Card className="mx-4 my-5">
               <div className="flex justify-between items-start p-4">
                 <CardHeader className="text-lg font-semibold">
                   {currBot.name}
@@ -85,9 +90,19 @@ export default function Page() {
               </div>
               <div className="ml-10 mb-5">
                 <CardDescription>API KEY: {currBot.apiKey}</CardDescription>
-                <CardDescription>Cash: {currBot.cash}</CardDescription>
                 <CardDescription>
-                  Account value: {currBot.accountValue}
+                  Cash:{" "}
+                  {new Intl.NumberFormat("en-US", {
+                    style: "currency",
+                    currency: "USD",
+                  }).format(currBot.cash)}
+                </CardDescription>
+                <CardDescription>
+                  Account value:{" "}
+                  {new Intl.NumberFormat("en-US", {
+                    style: "currency",
+                    currency: "USD",
+                  }).format(currBot.accountValue)}
                 </CardDescription>
               </div>
             </Card>
@@ -105,9 +120,12 @@ export default function Page() {
               </>
             ) : (
               <div className="flex items-center justify-center h-96">
-                <p className="text-white text-lg">
-                  Create a bot to get started
-                </p>
+                {loading && <LoadingScreen />}
+                {!loading && (
+                  <p className="text-white text-lg">
+                    Create a bot to get started
+                  </p>
+                )}
               </div>
             )}
           </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { IconDashboard } from "@tabler/icons-react";
+import { IconDashboard, IconTrophy } from "@tabler/icons-react";
 
 import { NavMain } from "@/components/nav-main";
 import { NavUser } from "@/components/nav-user";
@@ -29,6 +29,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         url: "/",
         icon: IconDashboard,
       },
+      {
+        title: "Leaderboard",
+        url: "/leaderboard",
+        icon: IconTrophy,
+      },
     ],
   };
   return (
@@ -40,7 +45,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               asChild
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
-              <a href="#">
+              <a href="">
                 <span className="text-base font-semibold">AlgoBattle</span>
               </a>
             </SidebarMenuButton>
