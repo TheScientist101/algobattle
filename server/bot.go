@@ -183,6 +183,7 @@ func NewBotWorker(db *firestore.Client, tiingo *Tiingo) *BotWorker {
 					go func() {
 						portfolio := &Portfolio{}
 						doc.DataTo(portfolio)
+						log.Printf("calculating portfolio: %v\n", doc.Ref.ID)
 
 						// Noise Generator
 						//portfolio.HistoricalAccountValue = make([]*AccountValueHistory, 0)
@@ -210,6 +211,7 @@ func NewBotWorker(db *firestore.Client, tiingo *Tiingo) *BotWorker {
 							price, ok := bw.latestPrices[ticker]
 							if !ok {
 								bw.tiingo.AddTickers(ticker)
+								log.Printf("failed to find ticker data for \"%s\" while calculating portfolio: %v\n", ticker, doc.Ref.ID)
 								return
 							}
 
@@ -232,6 +234,7 @@ func NewBotWorker(db *firestore.Client, tiingo *Tiingo) *BotWorker {
 							portfolio.HistoricalAccountValue[len(portfolio.HistoricalAccountValue)-1].Date = time.Now()
 						}
 
+						log.Printf("updated portfolio: %v\n", portfolio)
 						_, err = doc.Ref.Update(context.Background(), []firestore.Update{
 							{Path: "accountValue", Value: portfolio.AccountValue},
 							{Path: "historicalAccountValue", Value: portfolio.HistoricalAccountValue},

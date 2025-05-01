@@ -17,7 +17,7 @@ type Indicator interface {
 }
 
 type PackedPeriod struct {
-	Date        time.Time `json:"Date"`
+	Date        time.Time `json:"date"`
 	Open        float64   `json:"open"`
 	High        float64   `json:"high"`
 	Low         float64   `json:"low"`
