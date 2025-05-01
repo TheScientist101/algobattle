@@ -246,8 +246,6 @@ func NewBotWorker(db *firestore.Client, tiingo *Tiingo) *BotWorker {
 				for _, doc := range docs {
 					go bw.calculateAccountValue(doc)
 				}
-
-				return
 			}
 		}
 	}()
