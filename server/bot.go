@@ -134,6 +134,70 @@ type BotWorker struct {
 	latestPrices map[string]float64
 }
 
+func (bw *BotWorker) calculateAccountValue(doc *firestore.DocumentSnapshot) {
+	portfolio := &Portfolio{}
+	doc.DataTo(portfolio)
+	log.Printf("calculating portfolio: %v\n", doc.Ref.ID)
+
+	// Noise Generator
+	//portfolio.HistoricalAccountValue = make([]*AccountValueHistory, 0)
+	//currTime := time.Date(2025, 3, 23, 0, 0, 0, 0, time.UTC)
+	//var lastValue float64 = 100
+	//for currTime.Before(time.Now()) {
+	//	portfolio.HistoricalAccountValue = append(portfolio.HistoricalAccountValue, &AccountValueHistory{currTime, lastValue})
+	//	currTime = currTime.Add(time.Hour * 24)
+	//	lastValue += (rand.Float64() - 0.44) * 50
+	//}
+	//
+	//portfolio.AccountValue = portfolio.HistoricalAccountValue[len(portfolio.HistoricalAccountValue)-1].Value
+	//
+	//_, err = doc.Ref.Update(context.Background(), []firestore.Update{
+	//	{Path: "accountValue", Value: portfolio.AccountValue},
+	//	{Path: "historicalAccountValue", Value: portfolio.HistoricalAccountValue},
+	//})
+	//if err != nil {
+	//	log.Println(err)
+	//}
+
+	portfolio.AccountValue = portfolio.Cash
+
+	for ticker, holding := range portfolio.Holdings {
+		price, ok := bw.latestPrices[ticker]
+		if !ok {
+			bw.tiingo.AddTickers(ticker)
+			log.Printf("failed to find ticker data for \"%s\" while calculating portfolio: %v\n", ticker, doc.Ref.ID)
+			return
+		}
+
+		portfolio.AccountValue += holding.NumShares * price
+	}
+
+	if len(portfolio.HistoricalAccountValue) == 0 {
+		portfolio.HistoricalAccountValue = make([]*AccountValueHistory, 0)
+		portfolio.HistoricalAccountValue = append(portfolio.HistoricalAccountValue, &AccountValueHistory{
+			Date:  time.Now(),
+			Value: portfolio.AccountValue,
+		})
+	} else if portfolio.HistoricalAccountValue[len(portfolio.HistoricalAccountValue)-1].Date.Add(time.Hour * 24).Before(time.Now()) {
+		portfolio.HistoricalAccountValue = append(portfolio.HistoricalAccountValue, &AccountValueHistory{
+			Date:  time.Now(),
+			Value: portfolio.AccountValue,
+		})
+	} else {
+		portfolio.HistoricalAccountValue[len(portfolio.HistoricalAccountValue)-1].Value = portfolio.AccountValue
+		portfolio.HistoricalAccountValue[len(portfolio.HistoricalAccountValue)-1].Date = time.Now()
+	}
+
+	log.Printf("updated portfolio: %v\n", portfolio)
+	_, err := doc.Ref.Update(context.Background(), []firestore.Update{
+		{Path: "accountValue", Value: portfolio.AccountValue},
+		{Path: "historicalAccountValue", Value: portfolio.HistoricalAccountValue},
+	})
+	if err != nil {
+		log.Println(err)
+	}
+}
+
 func NewBotWorker(db *firestore.Client, tiingo *Tiingo) *BotWorker {
 	bw := &BotWorker{
 		db:           db,
@@ -180,69 +244,7 @@ func NewBotWorker(db *firestore.Client, tiingo *Tiingo) *BotWorker {
 				}
 
 				for _, doc := range docs {
-					go func() {
-						portfolio := &Portfolio{}
-						doc.DataTo(portfolio)
-						log.Printf("calculating portfolio: %v\n", doc.Ref.ID)
-
-						// Noise Generator
-						//portfolio.HistoricalAccountValue = make([]*AccountValueHistory, 0)
-						//currTime := time.Date(2025, 3, 23, 0, 0, 0, 0, time.UTC)
-						//var lastValue float64 = 100
-						//for currTime.Before(time.Now()) {
-						//	portfolio.HistoricalAccountValue = append(portfolio.HistoricalAccountValue, &AccountValueHistory{currTime, lastValue})
-						//	currTime = currTime.Add(time.Hour * 24)
-						//	lastValue += (rand.Float64() - 0.44) * 50
-						//}
-						//
-						//portfolio.AccountValue = portfolio.HistoricalAccountValue[len(portfolio.HistoricalAccountValue)-1].Value
-						//
-						//_, err = doc.Ref.Update(context.Background(), []firestore.Update{
-						//	{Path: "accountValue", Value: portfolio.AccountValue},
-						//	{Path: "historicalAccountValue", Value: portfolio.HistoricalAccountValue},
-						//})
-						//if err != nil {
-						//	log.Println(err)
-						//}
-
-						portfolio.AccountValue = portfolio.Cash
-
-						for ticker, holding := range portfolio.Holdings {
-							price, ok := bw.latestPrices[ticker]
-							if !ok {
-								bw.tiingo.AddTickers(ticker)
-								log.Printf("failed to find ticker data for \"%s\" while calculating portfolio: %v\n", ticker, doc.Ref.ID)
-								return
-							}
-
-							portfolio.AccountValue += holding.NumShares * price
-						}
-
-						if len(portfolio.HistoricalAccountValue) == 0 {
-							portfolio.HistoricalAccountValue = make([]*AccountValueHistory, 0)
-							portfolio.HistoricalAccountValue = append(portfolio.HistoricalAccountValue, &AccountValueHistory{
-								Date:  time.Now(),
-								Value: portfolio.AccountValue,
-							})
-						} else if portfolio.HistoricalAccountValue[len(portfolio.HistoricalAccountValue)-1].Date.Add(time.Hour * 24).Before(time.Now()) {
-							portfolio.HistoricalAccountValue = append(portfolio.HistoricalAccountValue, &AccountValueHistory{
-								Date:  time.Now(),
-								Value: portfolio.AccountValue,
-							})
-						} else {
-							portfolio.HistoricalAccountValue[len(portfolio.HistoricalAccountValue)-1].Value = portfolio.AccountValue
-							portfolio.HistoricalAccountValue[len(portfolio.HistoricalAccountValue)-1].Date = time.Now()
-						}
-
-						log.Printf("updated portfolio: %v\n", portfolio)
-						_, err = doc.Ref.Update(context.Background(), []firestore.Update{
-							{Path: "accountValue", Value: portfolio.AccountValue},
-							{Path: "historicalAccountValue", Value: portfolio.HistoricalAccountValue},
-						})
-						if err != nil {
-							log.Println(err)
-						}
-					}()
+					go bw.calculateAccountValue(doc)
 				}
 
 				return
