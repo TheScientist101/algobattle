@@ -188,7 +188,7 @@ func (bw *BotWorker) calculateAccountValue(doc *firestore.DocumentSnapshot) {
 		portfolio.HistoricalAccountValue[len(portfolio.HistoricalAccountValue)-1].Date = time.Now()
 	}
 
-	log.Printf("updated portfolio: %v\n", portfolio)
+	log.Printf("updated portfolio: %v\n", doc.Ref.ID)
 	_, err := doc.Ref.Update(context.Background(), []firestore.Update{
 		{Path: "accountValue", Value: portfolio.AccountValue},
 		{Path: "historicalAccountValue", Value: portfolio.HistoricalAccountValue},
