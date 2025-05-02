@@ -42,9 +42,13 @@ func (t *Tiingo) AddTickers(newTickers ...string) {
 	t.tickers.Insert(newTickers...)
 }
 
-func (t *Tiingo) currPrice(tickers ...string) float64 {
-	//iex/<ticker>/prices?startDate=2019-01-02&resampleFreq=5min
-	//tickers -> a,b,c
+type LastPriceResponse struct {
+	Ticker   string  `json:"ticker"`
+	TngoLast float64 `json:"tngoLast"`
+}
+
+func (t *Tiingo) fetchCurrPrice() map[string]float64 {
+	tickers := t.tickers.AsSlice()
 	tickersStr := strings.Join(tickers, ",")
 
 	request, err := http.NewRequest(http.MethodGet,
@@ -73,15 +77,18 @@ func (t *Tiingo) currPrice(tickers ...string) float64 {
 		log.Fatal(response.Status+" when fetching ", tickers)
 	}
 
-	result := make([]struct {
-		AskPrice float64 `json:"askPrice"`
-	}, 0)
-
+	result := make([]LastPriceResponse, len(tickers))
 	if err = json.NewDecoder(response.Body).Decode(&result); err != nil {
 		log.Fatal(err)
 	}
 
-	return result[0].AskPrice
+	mappings := make(map[string]float64, len(tickers))
+
+	for _, pair := range result {
+		mappings[pair.Ticker] = pair.TngoLast
+	}
+
+	return mappings
 }
 
 func (t *Tiingo) historicalDaily(ticker string) error {

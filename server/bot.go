@@ -205,27 +205,20 @@ func NewBotWorker(db *firestore.Client, tiingo *Tiingo) *BotWorker {
 		latestPrices: make(map[string]float64),
 	}
 
-	dataDownloader := time.NewTicker(time.Minute * 5)
+	liveDownloader := time.NewTicker(time.Minute * 5)
+	dailyDownloader := time.NewTicker(time.Hour * 24)
 	go func() {
 		for {
 			select {
-			case <-dataDownloader.C:
-				if time.Now().In(time.UTC).Hour() < 14 || time.Now().In(time.UTC).Hour() > 21 {
-					log.Println("skipping data download because it is not in the trading hours")
-					continue
-				}
+			case <-dailyDownloader.C:
 				bw.tiingo.DownloadAllTickers()
+			case <-liveDownloader.C:
+				//if time.Now().In(time.UTC).Hour() < 14 || time.Now().In(time.UTC).Hour() > 21 {
+				//	log.Println("skipping data download because it is not in the trading hours")
+				//	continue
+				//}
 
-				for ticker := range tiingo.tickers.All() {
-					_, row := tiingo.DailyCache.GetClosestRowBefore(tiingo.DailyCache.Tickers[ticker].End)
-					data, ok := row.Data.Load(ticker)
-					if !ok {
-						log.Printf("error retrieving data for ticker %s\n", ticker)
-					} else {
-						bw.latestPrices[ticker] = data.Close
-					}
-				}
-
+				bw.latestPrices = bw.tiingo.fetchCurrPrice()
 				log.Printf("updated prices: %v\n", bw.latestPrices)
 			}
 		}

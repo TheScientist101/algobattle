@@ -143,6 +143,16 @@ func (t *TreeSet[T]) All() iter.Seq[T] {
 	}
 }
 
+func (t *TreeSet[T]) AsSlice() []T {
+	slice := make([]T, 0)
+	t.All()(func(value T) bool {
+		slice = append(slice, value)
+		return true
+	})
+
+	return slice
+}
+
 func (t *TreeSet[T]) delete(h *node[T], value T) *node[T] {
 	if h == nil {
 		return nil
