@@ -139,6 +139,9 @@ func (bw *BotWorker) calculateAccountValue(doc *firestore.DocumentSnapshot) {
 	doc.DataTo(portfolio)
 	log.Printf("calculating portfolio: %v\n", doc.Ref.ID)
 
+	oldAccountValue := portfolio.AccountValue
+	historyChanged := false
+
 	// Noise Generator
 	//portfolio.HistoricalAccountValue = make([]*AccountValueHistory, 0)
 	//currTime := time.Date(2025, 3, 23, 0, 0, 0, 0, time.UTC)
@@ -178,14 +181,18 @@ func (bw *BotWorker) calculateAccountValue(doc *firestore.DocumentSnapshot) {
 			Date:  time.Now(),
 			Value: portfolio.AccountValue,
 		})
+		historyChanged = true
 	} else if portfolio.HistoricalAccountValue[len(portfolio.HistoricalAccountValue)-1].Date.Add(time.Hour * 24).Before(time.Now()) {
 		portfolio.HistoricalAccountValue = append(portfolio.HistoricalAccountValue, &AccountValueHistory{
 			Date:  time.Now(),
 			Value: portfolio.AccountValue,
 		})
-	} else {
-		portfolio.HistoricalAccountValue[len(portfolio.HistoricalAccountValue)-1].Value = portfolio.AccountValue
-		portfolio.HistoricalAccountValue[len(portfolio.HistoricalAccountValue)-1].Date = time.Now()
+		historyChanged = true
+	}
+
+	if !historyChanged && oldAccountValue == portfolio.AccountValue {
+		log.Printf("no change in account value for portfolio: %v\n", doc.Ref.ID)
+		return
 	}
 
 	log.Printf("updated portfolio: %v\n", doc.Ref.ID)
@@ -225,7 +232,7 @@ func NewBotWorker(db *firestore.Client, tiingo *Tiingo) *BotWorker {
 	}()
 
 	// TODO: Change this to a webhook
-	accountValuer := time.NewTicker(time.Second * 10)
+	accountValuer := time.NewTicker(time.Minute * 5)
 	go func() {
 		for {
 			select {
