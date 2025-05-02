@@ -134,6 +134,7 @@ type BotWorker struct {
 	latestPrices map[string]float64
 }
 
+// TODO: use the same timezone as New York or whatever
 func (bw *BotWorker) calculateAccountValue(doc *firestore.DocumentSnapshot) {
 	portfolio := &Portfolio{}
 	doc.DataTo(portfolio)
@@ -182,11 +183,15 @@ func (bw *BotWorker) calculateAccountValue(doc *firestore.DocumentSnapshot) {
 			Value: portfolio.AccountValue,
 		})
 		historyChanged = true
-	} else if portfolio.HistoricalAccountValue[len(portfolio.HistoricalAccountValue)-1].Date.Add(time.Hour * 24).Before(time.Now()) {
+	} else if portfolio.HistoricalAccountValue[len(portfolio.HistoricalAccountValue)-1].Date.YearDay() != time.Now().YearDay() {
 		portfolio.HistoricalAccountValue = append(portfolio.HistoricalAccountValue, &AccountValueHistory{
 			Date:  time.Now(),
 			Value: portfolio.AccountValue,
 		})
+		historyChanged = true
+	} else if portfolio.HistoricalAccountValue[len(portfolio.HistoricalAccountValue)-1].Value != portfolio.AccountValue {
+		portfolio.HistoricalAccountValue[len(portfolio.HistoricalAccountValue)-1].Value = portfolio.AccountValue
+		portfolio.HistoricalAccountValue[len(portfolio.HistoricalAccountValue)-1].Date = time.Now()
 		historyChanged = true
 	}
 
@@ -195,7 +200,7 @@ func (bw *BotWorker) calculateAccountValue(doc *firestore.DocumentSnapshot) {
 		return
 	}
 
-	log.Printf("updated portfolio: %v\n", doc.Ref.ID)
+	log.Printf("updated portfolio: %v\nlatest account value: %v\n", doc.Ref.ID, portfolio.AccountValue)
 	_, err := doc.Ref.Update(context.Background(), []firestore.Update{
 		{Path: "accountValue", Value: portfolio.AccountValue},
 		{Path: "historicalAccountValue", Value: portfolio.HistoricalAccountValue},
@@ -214,38 +219,37 @@ func NewBotWorker(db *firestore.Client, tiingo *Tiingo) *BotWorker {
 
 	liveDownloader := time.NewTicker(time.Minute * 5)
 	dailyDownloader := time.NewTicker(time.Hour * 24)
+	accountValuer := make(chan bool)
 	go func() {
-		for {
-			select {
-			case <-dailyDownloader.C:
-				bw.tiingo.DownloadAllTickers()
-			case <-liveDownloader.C:
-				if time.Now().In(time.UTC).Hour() < 14 || time.Now().In(time.UTC).Hour() > 21 {
-					log.Println("skipping data download because it is not in the trading hours")
-					continue
-				}
-
-				bw.latestPrices = bw.tiingo.fetchCurrPrice()
-				log.Printf("updated prices: %v\n", bw.latestPrices)
+		for ; true; <-liveDownloader.C {
+			if time.Now().In(time.UTC).Hour() < 14 || time.Now().In(time.UTC).Hour() > 21 {
+				log.Println("skipping data download because it is not in the trading hours")
+				continue
 			}
+
+			bw.latestPrices = bw.tiingo.fetchCurrPrice()
+			log.Printf("updated prices: %v\n", bw.latestPrices)
+			accountValuer <- true
+		}
+	}()
+
+	go func() {
+		for ; true; <-dailyDownloader.C {
+			bw.tiingo.DownloadAllTickers()
 		}
 	}()
 
 	// TODO: Change this to a webhook
-	accountValuer := time.NewTicker(time.Minute * 5)
 	go func() {
-		for {
-			select {
-			case <-accountValuer.C:
-				docs, err := bw.db.Collection("bots").Documents(context.Background()).GetAll()
-				if err != nil {
-					log.Printf("error retrieving bots: %v\n", err)
-					continue
-				}
+		for ; true; <-accountValuer {
+			docs, err := bw.db.Collection("bots").Documents(context.Background()).GetAll()
+			if err != nil {
+				log.Printf("error retrieving bots: %v\n", err)
+				continue
+			}
 
-				for _, doc := range docs {
-					go bw.calculateAccountValue(doc)
-				}
+			for _, doc := range docs {
+				go bw.calculateAccountValue(doc)
 			}
 		}
 	}()
