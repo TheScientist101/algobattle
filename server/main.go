@@ -53,7 +53,8 @@ func main() {
 	httpRoutes.GET("/portfolio", botworker.GetPortfolio)
 	httpRoutes.GET("/add_ticker", botworker.AddTicker)
 	httpRoutes.POST("/transact", botworker.MakeTransaction, botworker.SavePortfolio)
-	httpRoutes.GET("/stock_data", botworker.GetStockData)
+	httpRoutes.GET("/daily_stock_data", botworker.GetDailyStockData)
+	httpRoutes.GET("/live_stock_data", botworker.GetLiveStockData)
 
 	// TODO: Websockets
 	//m.HandleMessage(botworker.TradingStream)

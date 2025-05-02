@@ -1,5 +1,5 @@
 ### GET request to example server
-GET http://localhost:8080/stock_data
+GET http://localhost:8080/live_stock_data
 Authorization: {{api_key}}
 
 ###

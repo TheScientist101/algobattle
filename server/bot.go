@@ -220,10 +220,10 @@ func NewBotWorker(db *firestore.Client, tiingo *Tiingo) *BotWorker {
 			case <-dailyDownloader.C:
 				bw.tiingo.DownloadAllTickers()
 			case <-liveDownloader.C:
-				//if time.Now().In(time.UTC).Hour() < 14 || time.Now().In(time.UTC).Hour() > 21 {
-				//	log.Println("skipping data download because it is not in the trading hours")
-				//	continue
-				//}
+				if time.Now().In(time.UTC).Hour() < 14 || time.Now().In(time.UTC).Hour() > 21 {
+					log.Println("skipping data download because it is not in the trading hours")
+					continue
+				}
 
 				bw.latestPrices = bw.tiingo.fetchCurrPrice()
 				log.Printf("updated prices: %v\n", bw.latestPrices)
@@ -420,8 +420,8 @@ func (bw *BotWorker) AddTicker(c *gin.Context) {
 	}
 }
 
-func (bw *BotWorker) GetStockData(c *gin.Context) {
-	c.JSON(200, &DataPacket{"stock_data", bw.tiingo.DailyCache.Pack()})
+func (bw *BotWorker) GetDailyStockData(c *gin.Context) {
+	c.JSON(200, &DataPacket{"daily_stock_data", bw.tiingo.DailyCache.Pack()})
 }
 
 func (bw *BotWorker) MakeTransaction(c *gin.Context) {
@@ -520,4 +520,8 @@ func (bw *BotWorker) GetPortfolio(c *gin.Context) {
 	}
 
 	c.JSON(200, &DataPacket{"portfolio", portfolio})
+}
+
+func (bw *BotWorker) GetLiveStockData(c *gin.Context) {
+	c.JSON(200, &DataPacket{"live_stock_data", bw.latestPrices})
 }
