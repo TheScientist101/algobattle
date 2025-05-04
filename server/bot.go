@@ -134,7 +134,7 @@ type BotWorker struct {
 	latestPrices map[string]float64
 }
 
-// TODO: use the same timezone as New York or whatever
+// TODO: use the same timezone as New York or whatever, time.LoadLocation("America/New_York")
 func (bw *BotWorker) calculateAccountValue(doc *firestore.DocumentSnapshot) {
 	portfolio := &Portfolio{}
 	doc.DataTo(portfolio)
@@ -168,8 +168,12 @@ func (bw *BotWorker) calculateAccountValue(doc *firestore.DocumentSnapshot) {
 	for ticker, holding := range portfolio.Holdings {
 		price, ok := bw.latestPrices[ticker]
 		if !ok {
-			bw.tiingo.AddTickers(ticker)
-			log.Printf("failed to find ticker data for \"%s\" while calculating portfolio: %v\n", ticker, doc.Ref.ID)
+			log.Printf("failed to find ticker data for \"%s\" while calculating portfolio: %v\nadding %s to watchlist...\n", ticker, doc.Ref.ID, ticker)
+			err := bw.addTickers(ticker)
+
+			if err != nil {
+				log.Printf("error while adding ticker: %v\n", err)
+			}
 			return
 		}
 
@@ -227,15 +231,17 @@ func NewBotWorker(db *firestore.Client, tiingo *Tiingo) *BotWorker {
 				continue
 			}
 
-			bw.latestPrices = bw.tiingo.fetchCurrPrice()
-			log.Printf("updated prices: %v\n", bw.latestPrices)
+			bw.updateCurrPrices()
 			accountValuer <- true
 		}
 	}()
 
 	go func() {
 		for ; true; <-dailyDownloader.C {
-			bw.tiingo.DownloadAllTickers()
+			err := bw.tiingo.DownloadAllTickers()
+			if err != nil {
+				log.Printf("error downloading daily stock data: %v\n", err)
+			}
 		}
 	}()
 
@@ -395,33 +401,20 @@ func (bw *BotWorker) AddTicker(c *gin.Context) {
 		return
 	}
 
-	bw.tiingo.AddTickers(tickers...)
-	c.JSON(200, NewResultPacket(fmt.Sprintf("successfully added tickers: %v", tickers), true))
-
-	if time.Now().In(time.UTC).Hour() < 14 || time.Now().In(time.UTC).Hour() > 21 {
-		for _, ticker := range tickers {
-			err := bw.tiingo.historicalDaily(ticker)
-			if err != nil {
-				log.Printf("error downloading historical data for ticker %s: %v\n", ticker, err)
-				continue
-			}
-		}
-
-		err := bw.tiingo.SaveCaches()
-		if err != nil {
-			log.Printf("error saving historical data for tickers: %v\n", err)
-		}
-
-		for ticker := range bw.tiingo.tickers.All() {
-			_, row := bw.tiingo.DailyCache.GetClosestRowBefore(bw.tiingo.DailyCache.Tickers[ticker].End)
-			data, ok := row.Data.Load(ticker)
-			if !ok {
-				log.Printf("error retrieving data for ticker %s\n", ticker)
-			} else {
-				bw.latestPrices[ticker] = data.Close
-			}
-		}
+	err := bw.addTickers(tickers...)
+	if err != nil {
+		log.Printf("error while adding ticker: %v\n", err)
+		c.AbortWithStatusJSON(500, NewResultPacket("failed to add at least one ticker", false))
+		return
 	}
+
+	c.JSON(200, NewResultPacket(fmt.Sprintf("successfully added tickers: %v", tickers), true))
+}
+
+func (bw *BotWorker) addTickers(tickers ...string) error {
+	bw.tiingo.AddTickers(tickers...)
+	bw.updateCurrPrices()
+	return bw.tiingo.DownloadMissingTickers()
 }
 
 func (bw *BotWorker) GetDailyStockData(c *gin.Context) {
@@ -528,4 +521,9 @@ func (bw *BotWorker) GetPortfolio(c *gin.Context) {
 
 func (bw *BotWorker) GetLiveStockData(c *gin.Context) {
 	c.JSON(200, &DataPacket{"live_stock_data", bw.latestPrices})
+}
+
+func (bw *BotWorker) updateCurrPrices() {
+	bw.latestPrices = bw.tiingo.fetchCurrPrices()
+	log.Printf("updated prices: %v\n", bw.latestPrices)
 }

@@ -108,7 +108,7 @@ type TickerMeta struct {
 }
 
 type Row struct {
-	Date time.Time                           `json:"Date"`
+	Date time.Time                           `json:"date"`
 	Data *xsync.MapOf[string, *TickerPeriod] `json:"data"`
 }
 
@@ -117,15 +117,12 @@ func (r Row) Compare(other *Row) int {
 }
 
 type PackedRow struct {
-	Date time.Time                `json:"Date"`
+	Date time.Time                `json:"date"`
 	Data map[string]*TickerPeriod `json:"data"`
 }
 
 func (r *Row) UnmarshalJSON(bytes []byte) error {
-	temp := &struct {
-		Date time.Time                `json:"Date"`
-		Data map[string]*TickerPeriod `json:"data"`
-	}{}
+	temp := &PackedRow{}
 
 	if err := json.Unmarshal(bytes, &temp); err != nil {
 		return fmt.Errorf("failed to unmarshal JSON into MapOf: %v", err)

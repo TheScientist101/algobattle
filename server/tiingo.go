@@ -47,7 +47,7 @@ type LastPriceResponse struct {
 	TngoLast float64 `json:"tngoLast"`
 }
 
-func (t *Tiingo) fetchCurrPrice() map[string]float64 {
+func (t *Tiingo) fetchCurrPrices() map[string]float64 {
 	tickers := t.tickers.AsSlice()
 	tickersStr := strings.Join(tickers, ",")
 
@@ -122,6 +122,8 @@ func (t *Tiingo) historicalDaily(ticker string) error {
 			log.Println(ticker, "not found")
 		}
 
+		t.tickers.Remove(ticker)
+
 		return fmt.Errorf(response.Status + " when fetching " + ticker)
 	}
 
@@ -172,6 +174,26 @@ func (t *Tiingo) DownloadAllTickers() error {
 		errs.Go(func() error {
 			return t.historicalDaily(ticker)
 		})
+	}
+
+	err := errs.Wait()
+
+	if err := t.SaveCaches(); err != nil {
+		return err
+	}
+
+	return err
+}
+
+func (t *Tiingo) DownloadMissingTickers() error {
+	errs, _ := errgroup.WithContext(context.Background())
+
+	for ticker := range t.tickers.All() {
+		if _, ok := t.DailyCache.Tickers[ticker]; !ok {
+			errs.Go(func() error {
+				return t.historicalDaily(ticker)
+			})
+		}
 	}
 
 	err := errs.Wait()
