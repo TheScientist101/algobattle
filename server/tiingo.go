@@ -39,6 +39,10 @@ func NewTiingo(token string) *Tiingo {
 }
 
 func (t *Tiingo) AddTickers(newTickers ...string) {
+	for i, ticker := range newTickers {
+		newTickers[i] = strings.ToUpper(ticker)
+	}
+
 	t.tickers.Insert(newTickers...)
 }
 
