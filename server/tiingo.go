@@ -63,13 +63,13 @@ func (t *Tiingo) fetchCurrPrices() map[string]float64 {
 		),
 		nil)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 
 	request.Header.Add("Content-Type", "application/json")
 	response, err := http.DefaultClient.Do(request)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 
 	defer response.Body.Close()
@@ -78,12 +78,13 @@ func (t *Tiingo) fetchCurrPrices() map[string]float64 {
 		if response.StatusCode == http.StatusNotFound {
 			log.Println(tickers, "not found")
 		}
-		log.Fatal(response.Status+" when fetching ", tickers)
+
+		log.Println(response.Status+" when fetching ", tickers)
 	}
 
 	result := make([]LastPriceResponse, len(tickers))
 	if err = json.NewDecoder(response.Body).Decode(&result); err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 
 	mappings := make(map[string]float64, len(tickers))
