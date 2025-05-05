@@ -9,7 +9,6 @@ import (
 	firebase "firebase.google.com/go/v4"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"github.com/olahol/melody"
 	"google.golang.org/api/option"
 	"urjith.dev/algobattle/internal/bot"
 	"urjith.dev/algobattle/internal/handlers"
@@ -30,44 +29,21 @@ func main() {
 	}
 
 	db, err := app.Firestore(ctx)
+	defer db.Close()
 	if err != nil {
 		fmt.Printf("error creating firestore client: %v", err)
 	}
 
 	r := gin.Default()
-	m := melody.New()
 
 	r.Use(gin.Logger())
 	r.Use(gin.RecoveryWithWriter(os.Stdout))
 
-	r.GET("/trading", func(c *gin.Context) {
-		err := m.HandleRequest(c.Writer, c.Request)
-		if err != nil {
-			log.Printf("error establishing websocket connection: %v\n", err)
-		}
-	})
-
 	tiingo := services.NewTiingo(os.Getenv("TIINGO_TOKEN"))
+
 	botworker := bot.NewBotWorker(db, tiingo)
 
 	handlers.SetupRoutes(r, botworker)
 
-	// TODO: Websockets
-	//m.HandleMessage(botworker.TradingStream)
-	//m.HandleSentMessage(func(s *melody.Session, bytes []byte) {
-	//	ref, ok := s.Get("db_ref")
-	//	if !ok {
-	//		log.Println("db ref not found")
-	//	} else if portfolio, ok := s.Get("bot"); ok {
-	//		_, err = ref.(*firestore.DocumentRef).Set(context.Background(), portfolio.(Portfolio))
-	//		if err != nil {
-	//			log.Printf("error setting portfolio: %v\n", err)
-	//		}
-	//	} else {
-	//		log.Println("error saving portfolio to firestore")
-	//	}
-	//})
-
 	r.Run(":8080")
-	defer db.Close()
 }

@@ -1,3 +1,5 @@
+// Package models defines the data structures used throughout the AlgoBattle application.
+// It includes models for portfolios, transactions, stock data, and related entities.
 package models
 
 import (
@@ -6,29 +8,45 @@ import (
 	"time"
 )
 
-// Portfolio represents a user's portfolio of stocks
+// Portfolio represents a user's portfolio of stocks.
+// It tracks the current account value, cash balance, stock holdings,
+// and transaction history.
 type Portfolio struct {
-	AccountValue           float64                  `json:"accountValue" firestore:"accountValue"`
-	HistoricalAccountValue []*AccountValueHistory   `json:"historicalAccountValue" firestore:"historicalAccountValue"`
-	Cash                   float64                  `json:"cash" firestore:"cash"`
-	Holdings               map[string]*Holding      `json:"holdings" firestore:"holdings"`
-	Transactions           []*Transaction           `json:"transactions" firestore:"-"`
-	TransactionReferences  []*firestore.DocumentRef `json:"-" firestore:"transactions"`
+	// AccountValue is the total value of the portfolio (cash + holdings)
+	AccountValue float64 `json:"accountValue" firestore:"accountValue"`
+
+	// HistoricalAccountValue tracks the portfolio value over time
+	HistoricalAccountValue []*AccountValueHistory `json:"historicalAccountValue" firestore:"historicalAccountValue"`
+
+	// Cash is the available cash balance
+	Cash float64 `json:"cash" firestore:"cash"`
+
+	// Holdings maps ticker symbols to stock holdings
+	Holdings map[string]*Holding `json:"holdings" firestore:"holdings"`
+
+	// Transactions is the list of transactions (not stored in Firestore)
+	Transactions []*Transaction `json:"transactions" firestore:"-"`
+
+	// TransactionReferences stores references to transaction documents in Firestore
+	TransactionReferences []*firestore.DocumentRef `json:"-" firestore:"transactions"`
 }
 
-// AccountValueHistory represents a historical account value at a specific date
+// AccountValueHistory represents a historical account value at a specific date.
+// This is used to track portfolio performance over time.
 type AccountValueHistory struct {
-	Date  time.Time `json:"date" firestore:"date"`
-	Value float64   `json:"value" firestore:"value"`
+	Date  time.Time `json:"date" firestore:"date"`   // The date of the valuation
+	Value float64   `json:"value" firestore:"value"` // The total portfolio value on that date
 }
 
-// Holding represents a stock holding in a portfolio
+// Holding represents a stock holding in a portfolio.
+// It tracks the number of shares and their average purchase value.
 type Holding struct {
-	NumShares     float64 `json:"numShares" firestore:"numShares"`
-	PurchaseValue float64 `json:"purchaseValue" firestore:"purchaseValue"`
+	NumShares     float64 `json:"numShares" firestore:"numShares"`         // Number of shares held
+	PurchaseValue float64 `json:"purchaseValue" firestore:"purchaseValue"` // Average purchase price per share
 }
 
-// NewPortfolio creates a new portfolio with the given starting cash
+// NewPortfolio creates a new portfolio with the given starting cash.
+// It initializes all the necessary maps and slices for a new portfolio.
 func NewPortfolio(startingCash float64) *Portfolio {
 	return &Portfolio{
 		Cash:                  startingCash,
@@ -38,8 +56,12 @@ func NewPortfolio(startingCash float64) *Portfolio {
 	}
 }
 
-// Buy adds a stock purchase to the portfolio
+// Buy adds a stock purchase to the portfolio.
+// It validates the transaction, updates the cash balance, and adds or updates
+// the holding in the portfolio. The purchase value is recalculated as a weighted
+// average when adding to an existing position.
 func (p *Portfolio) Buy(transaction *Transaction) error {
+	// Validate the transaction
 	switch {
 	case p.Cash < transaction.NumShares*transaction.UnitCost:
 		return fmt.Errorf("not enough cash to buy %f shares of %s", transaction.NumShares, transaction.Ticker)
@@ -65,7 +87,9 @@ func (p *Portfolio) Buy(transaction *Transaction) error {
 	return nil
 }
 
-// Sell removes a stock sale from the portfolio
+// Sell removes shares from a stock holding in the portfolio.
+// It validates the transaction, updates the cash balance, and reduces
+// the number of shares in the holding.
 func (p *Portfolio) Sell(transaction *Transaction) error {
 	switch {
 	case p.Holdings[transaction.Ticker].NumShares < transaction.NumShares:
@@ -81,7 +105,8 @@ func (p *Portfolio) Sell(transaction *Transaction) error {
 	return nil
 }
 
-// Execute executes a transaction (buy or sell)
+// Execute executes a transaction (buy or sell) on the portfolio.
+// It routes the transaction to the appropriate handler based on the action.
 func (p *Portfolio) Execute(transaction *Transaction) error {
 	switch transaction.Action {
 	case "buy":

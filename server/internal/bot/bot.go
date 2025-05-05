@@ -1,3 +1,6 @@
+// Package bot implements the core business logic for the AlgoBattle trading platform.
+// It handles portfolio management, stock data retrieval, and transaction processing.
+// The package also provides HTTP handlers for the REST API endpoints.
 package bot
 
 import (
@@ -172,36 +175,55 @@ func (bw *BotWorker) calculateAccountValue(doc *firestore.DocumentSnapshot) {
 	}
 }
 
-// AuthHandler authenticates a request
+// AuthHandler authenticates a request using the API key in the Authorization header.
+// It loads the user's portfolio and sets it in the context for downstream handlers.
+// This middleware should be applied to all routes that require authentication.
 func (bw *BotWorker) AuthHandler(c *gin.Context) {
+	// Get API key from Authorization header
 	apikey := c.GetHeader("Authorization")
+
+	// Find the bot with the matching API key
 	bot, err := bw.db.Collection("bots").Where("apiKey", "==", apikey).Documents(context.Background()).Next()
 	if err != nil || bot == nil {
 		c.AbortWithStatusJSON(401, NewResultPacket("error finding bot with specified api key", false))
 		return
 	}
 
+	// Load the portfolio data
 	portfolio := &models.Portfolio{}
 	bot.DataTo(portfolio)
 
+	// Set the database reference and portfolio in the context
 	c.Set("db_ref", bot.Ref)
 	c.Set("bot", portfolio)
 }
 
-// SavePortfolio saves a portfolio to the database
+// SavePortfolio saves the updated portfolio to the database.
+// This middleware should be applied after handlers that modify the portfolio.
+// @Summary Save portfolio changes
+// @Description Saves any changes made to the portfolio during the request
+// @Tags portfolio
+// @Accept json
+// @Produce json
+// @Success 200 {object} ResultData "Portfolio saved"
+// @Failure 401 {object} ResultData "Not authenticated"
+// @Router /transact [post]
 func (bw *BotWorker) SavePortfolio(c *gin.Context) {
+	// Get the database reference from the context
 	refUntyped, ok := c.Get("db_ref")
 	if !ok {
 		c.AbortWithStatusJSON(401, NewResultPacket("error: not authenticated", false))
 		return
 	}
 
+	// Get the portfolio from the context
 	botUntyped, ok := c.Get("bot")
 	if !ok {
 		c.AbortWithStatusJSON(401, NewResultPacket("error: failed to save portfolio information", false))
 		return
 	}
 
+	// Update the portfolio in the database
 	ref := refUntyped.(*firestore.DocumentRef)
 	ref.Update(context.Background(), []firestore.Update{
 		{Path: "cash", Value: botUntyped.(*models.Portfolio).Cash},
@@ -210,14 +232,26 @@ func (bw *BotWorker) SavePortfolio(c *gin.Context) {
 	})
 }
 
-// AddTicker adds a ticker to the watchlist
+// AddTicker adds one or more tickers to the watchlist for monitoring.
+// @Summary Add ticker to watchlist
+// @Description Adds one or more stock tickers to the watchlist for price monitoring and data collection
+// @Tags stocks
+// @Accept json
+// @Produce json
+// @Param ticker query []string true "Ticker symbols to add (can specify multiple)"
+// @Success 200 {object} ResultData "Tickers added successfully"
+// @Failure 400 {object} ResultData "Invalid request"
+// @Failure 500 {object} ResultData "Server error"
+// @Router /add_ticker [get]
 func (bw *BotWorker) AddTicker(c *gin.Context) {
+	// Get ticker symbols from query parameters
 	tickers, ok := c.GetQueryArray("ticker")
 	if !ok {
 		c.AbortWithStatusJSON(400, NewResultPacket("error parsing ticker query", false))
 		return
 	}
 
+	// Add tickers to the watchlist and download their data
 	err := bw.addTickers(tickers...)
 	if err != nil {
 		log.Printf("error while adding ticker: %v\n", err)
@@ -225,6 +259,7 @@ func (bw *BotWorker) AddTicker(c *gin.Context) {
 		return
 	}
 
+	// Return success response
 	c.JSON(200, NewResultPacket(fmt.Sprintf("successfully added tickers: %v", tickers), true))
 }
 
@@ -235,25 +270,47 @@ func (bw *BotWorker) addTickers(tickers ...string) error {
 	return bw.tiingo.DownloadMissingTickers()
 }
 
-// GetDailyStockData returns the daily stock data
+// GetDailyStockData returns historical daily stock data for all watched tickers.
+// @Summary Get historical stock data
+// @Description Retrieves daily historical stock data for all tickers in the watchlist
+// @Tags stocks
+// @Accept json
+// @Produce json
+// @Success 200 {object} DataPacket "Historical daily stock data"
+// @Failure 401 {object} ResultData "Not authenticated"
+// @Router /daily_stock_data [get]
 func (bw *BotWorker) GetDailyStockData(c *gin.Context) {
+	// Pack and return the daily cache as JSON
 	c.JSON(200, &DataPacket{"daily_stock_data", bw.tiingo.DailyCache.Pack()})
 }
 
-// MakeTransaction executes a transaction
+// MakeTransaction executes a buy or sell transaction for a stock.
+// @Summary Execute a stock transaction
+// @Description Processes a buy or sell transaction for a specified ticker and number of shares
+// @Tags transactions
+// @Accept json
+// @Produce json
+// @Param transaction body TransactionRequestData true "Transaction details"
+// @Success 200 {object} ResultData "Transaction successful"
+// @Failure 401 {object} ResultData "Not authenticated or insufficient funds/shares"
+// @Failure 500 {object} ResultData "Server error"
+// @Router /transact [post]
 func (bw *BotWorker) MakeTransaction(c *gin.Context) {
+	// Get the bot from the context (set by AuthHandler)
 	bot, ok := c.Get("bot")
 	if !ok {
 		c.AbortWithStatusJSON(401, NewResultPacket("error: not authenticated", false))
 		return
 	}
 
+	// Type assertion to get the portfolio
 	portfolio, ok := bot.(*models.Portfolio)
 	if !ok {
 		c.AbortWithStatusJSON(500, NewResultPacket("error: failed to retrieve portfolio information", false))
 		return
 	}
 
+	// Read and parse the request body
 	body, err := c.GetRawData()
 	if err != nil {
 		c.AbortWithStatusJSON(500, NewResultPacket("error: failed to retrieve request body", false))
@@ -267,12 +324,14 @@ func (bw *BotWorker) MakeTransaction(c *gin.Context) {
 		return
 	}
 
+	// Get the current price for the ticker
 	cost, ok := bw.latestPrices[request.Ticker]
 	if !ok {
 		c.AbortWithStatusJSON(500, NewResultPacket("error: ticker data not available, make sure to subscribe and receive a ticker data update first", false))
 		return
 	}
 
+	// Get the database reference
 	refUntyped, ok := c.Get("db_ref")
 	if !ok {
 		c.AbortWithStatusJSON(500, NewResultPacket("error: failed to retrieve portfolio database reference", false))
@@ -285,6 +344,7 @@ func (bw *BotWorker) MakeTransaction(c *gin.Context) {
 		return
 	}
 
+	// Create the transaction object
 	transaction := &models.Transaction{
 		Time:      time.Now(),
 		NumShares: request.NumShares,
@@ -294,36 +354,51 @@ func (bw *BotWorker) MakeTransaction(c *gin.Context) {
 		Bot:       ref,
 	}
 
+	// Execute the transaction on the portfolio
 	err = portfolio.Execute(transaction)
 	if err != nil {
 		c.AbortWithStatusJSON(401, NewResultPacket(err.Error(), false))
 		return
 	}
 
+	// Save the transaction to the database
 	doc, _, err := bw.db.Collection("transactions").Add(context.Background(), transaction)
 	if err != nil {
 		c.AbortWithStatusJSON(500, NewResultPacket("error: failed to save transaction", false))
 		return
 	}
 
+	// Add the transaction reference to the portfolio
 	portfolio.TransactionReferences = append(portfolio.TransactionReferences, doc)
 	c.JSON(200, NewResultPacket("successfully executed transaction", true))
 }
 
-// GetPortfolio returns the portfolio
+// GetPortfolio returns the user's portfolio with all holdings and transactions.
+// @Summary Get user portfolio
+// @Description Retrieves the authenticated user's portfolio including cash balance, holdings, and transaction history
+// @Tags portfolio
+// @Accept json
+// @Produce json
+// @Success 200 {object} DataPacket "Portfolio data"
+// @Failure 401 {object} ResultData "Not authenticated"
+// @Failure 500 {object} ResultData "Server error"
+// @Router /portfolio [get]
 func (bw *BotWorker) GetPortfolio(c *gin.Context) {
+	// Get the bot from the context (set by AuthHandler)
 	bot, ok := c.Get("bot")
 	if !ok {
 		c.AbortWithStatusJSON(401, NewResultPacket("error: not authenticated", false))
 		return
 	}
 
+	// Type assertion to get the portfolio
 	portfolio, ok := bot.(*models.Portfolio)
 	if !ok {
 		c.AbortWithStatusJSON(500, NewResultPacket("error: failed to retrieve portfolio information", false))
 		return
 	}
 
+	// Load all transactions from references
 	portfolio.Transactions = make([]*models.Transaction, 0, len(portfolio.TransactionReferences))
 	for _, ref := range portfolio.TransactionReferences {
 		doc, err := ref.Get(context.Background())
@@ -337,11 +412,21 @@ func (bw *BotWorker) GetPortfolio(c *gin.Context) {
 		portfolio.Transactions = append(portfolio.Transactions, transaction)
 	}
 
+	// Return the portfolio as JSON
 	c.JSON(200, &DataPacket{"portfolio", portfolio})
 }
 
-// GetLiveStockData returns the live stock data
+// GetLiveStockData returns the current stock prices for all watched tickers.
+// @Summary Get live stock prices
+// @Description Retrieves the latest stock prices for all tickers in the watchlist
+// @Tags stocks
+// @Accept json
+// @Produce json
+// @Success 200 {object} DataPacket "Live stock price data"
+// @Failure 401 {object} ResultData "Not authenticated"
+// @Router /live_stock_data [get]
 func (bw *BotWorker) GetLiveStockData(c *gin.Context) {
+	// Return the latest prices as JSON
 	c.JSON(200, &DataPacket{"live_stock_data", bw.latestPrices})
 }
 
