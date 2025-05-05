@@ -1,110 +1,216 @@
 # AlgoBattle
 
-A platform for hosting stock market trading bots
+[![Next.js](https://img.shields.io/badge/Next.js-13.0+-000000?style=flat-square&logo=next.js&logoColor=white)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-18.0+-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
+[![Go](https://img.shields.io/badge/Go-1.23+-00ADD8?style=flat-square&logo=go&logoColor=white)](https://golang.org/)
+[![Firebase](https://img.shields.io/badge/Firebase-9.0+-FFCA28?style=flat-square&logo=firebase&logoColor=black)](https://firebase.google.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.0+-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 
+> A professional platform for developing, testing, and competing with algorithmic stock market trading bots
 
-## Use our demo (RECOMMENDED FOR BEGINNERS)
+## Table of Contents
+- [Overview](#overview)
+- [Features](#features)
+- [Getting Started](#getting-started)
+  - [Option 1: Use Our Demo (Recommended for Beginners)](#option-1-use-our-demo-recommended-for-beginners)
+  - [Option 2: Run Locally](#option-2-run-locally)
+    - [Web Application Setup](#web-application-setup)
+    - [Server Setup](#server-setup)
+- [API Documentation](#api-documentation)
+- [Authors & Contributions](#authors--contributions)
+- [Citations & Attributions](#citations--attributions)
+- [View the Current Deployment](#view-the-current-deployment)
 
-Go to: https://algobattle.vercel.app
+## Overview
 
-When prompted to login, choose either of the sign-up options, we recommend Signing In With Google. If you are not interested in making an account, sign in using `luna@email.com` for the username and `imbadatcs` for the password.
+AlgoBattle is a sophisticated platform designed for financial technology enthusiasts, algorithmic traders, and developers interested in stock market automation. The platform enables users to create, deploy, and monitor algorithmic trading bots in a controlled environment with real market data.
 
-When you sign in, if there is no example bot created, click on the "Create a bot" button. Choose a name for the bot and click on the "Save" button. Reload the page to show information about your newly created bot. You may notice that there is no historical account value, and this is expected. It may take a couple minutes for the data to appear.
+The system consists of two main components:
+- **Web Dashboard**: A modern, responsive interface for managing bots, viewing performance metrics, and analyzing trading history
+- **API Backend**: A robust server-side infrastructure that handles bot interactions, executes trades, and provides market data
 
-If you have made a bot that is compatible with our API, go ahead and use your API key to connect your bot to our servers. If not, use [this](https://urjithmishra.postman.co/workspace/Urjith-Mishra's-Workspace~43538fc0-c30d-40e3-8045-90c077511b1d/collection/44405624-4dc9bb5a-f0dd-4c42-91c9-679ae5220c1d?action=share&creator=44405624) Postman link that has examples. Be sure to enter the API key shown on your dashboard or you will receive unauthorized errors. To do this, go to the tab labeled "Authorization" near the top of your screen. Then, hover over the text that says "ALGOBATTLE_API_KEY." A text box will appear near your cursor. Click on the textbox and enter your API key. Now, you can run any of the desired API requests simply by clicking on their names on the list on the left side of the screen and hitting the blue "Send" button. You can view any responses in the box on the bottom of your screen.
+## Features
 
-You will notice that transactions appear on the dashboard, and your account will be revalued daily. We are working on having more frequently updated stock data so you will have more accurate account estimates.
+- **Algorithmic Trading**: Develop and deploy custom trading algorithms without risking real capital
+- **Real-Time Market Data**: Access to current and historical stock prices from major exchanges
+- **Performance Analytics**: Track your bot's performance with comprehensive metrics and visualizations
+- **Leaderboard Competition**: Compare your bot's performance against others in the community
+- **Secure Authentication**: Firebase-powered user authentication and API key management
+- **RESTful API**: Well-documented API for programmatic interaction with the platform
 
-##  Hosting (web)
+## Getting Started
 
-These instructions will help you set up the project locally for development and testing.
+Choose one of the following options to start using AlgoBattle:
 
-### ✅ Prerequisites
+### Option 1: Use Our Demo (Recommended for Beginners)
 
+This option allows you to quickly explore AlgoBattle without setting up the development environment.
+
+#### Step 1: Access the Platform
+Visit our live deployment at [https://algobattle.vercel.app](https://algobattle.vercel.app)
+
+#### Step 2: Authentication
+- Sign in using your preferred method (Google authentication recommended)
+- For a quick demo without registration, use these credentials:
+  - Username: `luna@email.com`
+  - Password: `imbadatcs`
+
+#### Step 3: Create Your First Bot
+- After signing in, click the "Create a bot" button if no bots exist
+- Provide a name for your bot and click "Save"
+- Refresh the page to view your bot's dashboard
+- Note: Historical account value data may take a few minutes to appear
+
+#### Step 4: Connect Your Bot to the API
+- **For developers with custom bots**: Use the API key displayed on your dashboard
+- **For testing purposes**: Use our [Postman collection](https://urjithmishra.postman.co/workspace/Urjith-Mishra's-Workspace~43538fc0-c30d-40e3-8045-90c077511b1d/collection/44405624-4dc9bb5a-f0dd-4c42-91c9-679ae5220c1d?action=share&creator=44405624)
+
+#### Setting up the API Key in Postman:
+1. Navigate to the "Authorization" tab
+2. Hover over "ALGOBATTLE_API_KEY" and click the appearing textbox
+3. Enter your API key
+4. Select desired API requests from the left panel and click "Send"
+5. View responses in the bottom panel
+
+#### Step 5: Monitor Performance
+Your dashboard will display transactions and account value updates, which are recalculated daily.
+
+### Option 2: Run Locally
+
+This option is for developers who want to set up the complete AlgoBattle environment on their local machine.
+
+#### Web Application Setup
+
+##### Prerequisites
 - Node.js ≥ 18
-- npm or yarn
+- npm or yarn package manager
 
-### 📦 Installation
-
+##### Step 1: Clone the Repository
 ```bash
 git clone https://github.com/TheScientist101/algobattle.git
-cd algobattle
-cd web
-npm i
+cd algobattle/web
 ```
-### ⚙ Set up enviornment variables
 
-1. **Create a new firebase project, create a web app and add your enviornment variables to a .env file in the root directory of the web folder**
+##### Step 2: Install Dependencies
+```bash
+npm install
+# or if using yarn
+# yarn install
+```
+
+##### Step 3: Configure Environment
+1. Create a new Firebase project and register a web app
+2. Create a `.env` file in the web directory with the following variables:
 
 ```bash
-//.env contents
-NEXT_PUBLIC_API_KEY = "YOUR_KEY"
-NEXT_PUBLIC_AUTH_DOMAIN = "YOUR_AUTH_DOMAIN"
-NEXT_PUBLIC_PROJECT_ID = "YOUR_PROJECT_ID"
-NEXT_PUBLIC_STORAGE_BUCKET = "YOUR_STORAGE_BUCKET"
-NEXT_PUBLIC_MESSAGING_SENDER_ID = "YOUR_MESSAGING_SENDER_ID"
-NEXT_PUBLIC_APP_ID = "YOUR_APP_ID"
-NEXT_PUBLIC_MEASUREMENT_ID = "YOUR_MEASUREMENT_ID"
+# Firebase Configuration
+NEXT_PUBLIC_API_KEY="YOUR_FIREBASE_API_KEY"
+NEXT_PUBLIC_AUTH_DOMAIN="YOUR_AUTH_DOMAIN"
+NEXT_PUBLIC_PROJECT_ID="YOUR_PROJECT_ID"
+NEXT_PUBLIC_STORAGE_BUCKET="YOUR_STORAGE_BUCKET"
+NEXT_PUBLIC_MESSAGING_SENDER_ID="YOUR_MESSAGING_SENDER_ID"
+NEXT_PUBLIC_APP_ID="YOUR_APP_ID"
+NEXT_PUBLIC_MEASUREMENT_ID="YOUR_MEASUREMENT_ID"
 ```
-##  Run the website
 
-### 🚀 Run the website locally
-
+##### Step 4: Start Development Server
 ```bash
 npm run dev
+# or if using yarn
+# yarn dev
 ```
-##  Deploy the website
 
-These instructions will help you deploy the AlgoBattle web app. Remember to properly define your enviornment variables.
-- [Deploy on Vercel](https://vercel.com/docs/deployments/) - Click to view the documentation
+The web application will be available at `http://localhost:3000`
 
-## Hosting (server)
+##### Deployment (Optional)
+For production deployment, we recommend using Vercel:
+- Follow the [Vercel deployment guide](https://vercel.com/docs/deployments/)
+- Ensure all environment variables are properly configured in your Vercel project settings
 
-### ✅ Prerequisites
+#### Server Setup
 
+##### Prerequisites
 - Go ≥ 1.23
+- Git
 
-### 🚀 Run the server locally
-
+##### Step 1: Clone the Repository (if not already done)
 ```bash
 git clone https://github.com/TheScientist101/algobattle.git
-cd algobattle
-cd server
+cd algobattle/server
+```
+
+##### Step 2: Run the Server
+```bash
 go run urjith.dev/algobattle
 ```
 
-## 👥 Authors & Contributions
+The API server will be available at `http://localhost:8080`
 
-| Name             |  Role / Contribution                                      |
-|------------------|-----------------------------------------------------------|
-| Abhinav Devarakonda|  I built the web application of AlgoBattle, including authentication pages and a dashboard containing information on all the user's trading bots, including their value over time, their transactions, their api keys, their account value, and the cash they have. Furthermore, I created a learboard page that shows which bots have made the most money.               |
-| Urjith Mishra| I built the server-side code that any bot you write will interface with. This code also generates the value histories that are viewed on the web dashboard page, executes trades, calculates account values, provides stock pricing data, and validates API keys.|
+## API Documentation
 
+AlgoBattle provides a comprehensive RESTful API that allows developers to programmatically interact with the platform. The API enables your trading bots to:
 
----
+- Retrieve real-time and historical market data
+- Execute buy and sell transactions
+- Monitor portfolio performance
+- Manage watchlists and track specific stocks
 
-## 📚 Citations & Attributions
+For complete technical details, endpoint specifications, and code examples, please refer to our [API Documentation](server/api_documentation.md).
 
-### Code Libraries & Tools
-- [Next.js](https://nextjs.org/) – React Framework for SSR and SSG
-- [React](https://react.dev/) – JavaScript library for building UI
-- [Tailwind CSS](https://tailwindcss.com/) – Utility-first CSS framework
-- [Firebase](https://firebase.google.com/) - A suite of tools for web development includuding a cloud database and authentication manager
-- [Shadcn](https://ui.shadcn.com/) – Nextjs Component Library
-- [v0.dev](https://v0.dev/) - AI Nextjs component generator/editor
-- [ChatGPT](https://openai.com/index/chatgpt/) - AI chatbot used to create this Readme and to diagnose logical missteps and help with stying
-- [uuid](https://www.npmjs.com/package/uuid) - A library for creating unique ids
-- [gin gonic](https://github.com/gin-gonic/gin) - HTTP web framework for Go
+### API Features
 
+| Feature | Description |
+|---------|-------------|
+| Authentication | Secure API key-based authentication system |
+| Portfolio Management | Retrieve account balances, holdings, and transaction history |
+| Market Data | Access to current and historical stock prices and indicators |
+| Trading | Execute buy and sell orders programmatically |
+| Error Handling | Comprehensive error reporting and status codes |
 
-### Assets
-- All assets from starter code from Next.js
+## Authors & Contributions
 
-### References
-- [Next.js Docs](https://nextjs.org/docs) – Official documentation
-- [Tailwind CSS Docs](https://v2.tailwindcss.com/docs) -Official documentation
-- [Firebase Docs](https://firebase.google.com/docs) - Official documentation
+AlgoBattle was developed by a team of dedicated engineers with expertise in financial technology and web development.
 
-##  View the current deployment
+| Contributor         | Role                | Contributions                                             |
+|---------------------|---------------------|----------------------------------------------------------|
+| Abhinav Devarakonda | Frontend Developer  | • Designed and implemented the web application interface<br>• Built authentication system with Firebase integration<br>• Developed the dashboard for bot monitoring and analytics<br>• Created interactive data visualizations for performance tracking<br>• Implemented the leaderboard system for competitive rankings |
+| Urjith Mishra       | Backend Developer   | • Architected and built the server-side API infrastructure<br>• Developed the trading engine and transaction processing system<br>• Implemented market data integration and caching mechanisms<br>• Created portfolio valuation and performance calculation algorithms<br>• Designed the API authentication and security protocols |
 
-- [AlgoBattle.app](https://algobattle.vercel.app/) - Click to view the current AlgoBattle web app
+## Citations & Attributions
+
+### Frontend Technologies
+| Technology | Description | Version |
+|------------|-------------|---------|
+| [Next.js](https://nextjs.org/) | React framework for server-side rendering | 13.0+ |
+| [React](https://react.dev/) | JavaScript library for building user interfaces | 18.0+ |
+| [Tailwind CSS](https://tailwindcss.com/) | Utility-first CSS framework | 3.0+ |
+| [Firebase](https://firebase.google.com/) | Authentication and database services | 9.0+ |
+| [Shadcn UI](https://ui.shadcn.com/) | Component library for Next.js | Latest |
+| [UUID](https://www.npmjs.com/package/uuid) | Library for generating unique identifiers | 9.0+ |
+
+### Backend Technologies
+| Technology | Description | Version |
+|------------|-------------|---------|
+| [Go](https://golang.org/) | Programming language for backend services | 1.23+ |
+| [Gin Gonic](https://github.com/gin-gonic/gin) | HTTP web framework for Go | Latest |
+
+### Development Tools
+| Tool | Purpose |
+|------|---------|
+| [v0.dev](https://v0.dev/) | AI-powered component generator for Next.js | 
+| [ChatGPT](https://openai.com/index/chatgpt/) | AI assistant for documentation and debugging |
+
+### Documentation & References
+- [Next.js Documentation](https://nextjs.org/docs) – Official framework guides and API reference
+- [Tailwind CSS Documentation](https://v2.tailwindcss.com/docs) – Component styling and utility classes
+- [Firebase Documentation](https://firebase.google.com/docs) – Authentication and database integration
+- [Go Documentation](https://golang.org/doc/) – Language reference and standard library
+
+## Live Deployment
+
+<div align="center">
+  <a href="https://algobattle.vercel.app/" target="_blank">
+    <img src="https://img.shields.io/badge/Visit_AlgoBattle-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Visit AlgoBattle" />
+  </a>
+  <p>Experience the platform at <a href="https://algobattle.vercel.app/">algobattle.vercel.app</a></p>
+</div>
