@@ -73,9 +73,17 @@ func NewBotWorker(db *firestore.Client, tiingo *services.Tiingo) *BotWorker {
 		latestPrices: make(map[string]float64),
 	}
 
-	liveDownloader := time.NewTicker(time.Minute * 5)
-	dailyDownloader := time.NewTicker(time.Hour * 24)
 	accountValuer := make(chan bool)
+	bw.startPriceUpdater(accountValuer)
+	bw.startDailyDownloader()
+	bw.startAccountValueCalculator(accountValuer)
+
+	return bw
+}
+
+// startPriceUpdater starts a goroutine that updates prices every 5 minutes during trading hours
+func (bw *BotWorker) startPriceUpdater(accountValuer chan bool) {
+	liveDownloader := time.NewTicker(time.Minute * 5)
 	go func() {
 		for ; true; <-liveDownloader.C {
 			if time.Now().In(time.UTC).Hour() < 14 || time.Now().In(time.UTC).Hour() > 21 {
@@ -87,7 +95,11 @@ func NewBotWorker(db *firestore.Client, tiingo *services.Tiingo) *BotWorker {
 			accountValuer <- true
 		}
 	}()
+}
 
+// startDailyDownloader starts a goroutine that downloads ticker data daily
+func (bw *BotWorker) startDailyDownloader() {
+	dailyDownloader := time.NewTicker(time.Hour * 24)
 	go func() {
 		for ; true; <-dailyDownloader.C {
 			err := bw.tiingo.DownloadAllTickers()
@@ -96,7 +108,10 @@ func NewBotWorker(db *firestore.Client, tiingo *services.Tiingo) *BotWorker {
 			}
 		}
 	}()
+}
 
+// startAccountValueCalculator starts a goroutine that calculates account values
+func (bw *BotWorker) startAccountValueCalculator(accountValuer chan bool) {
 	// TODO: Change this to a webhook
 	go func() {
 		for ; true; <-accountValuer {
@@ -111,8 +126,6 @@ func NewBotWorker(db *firestore.Client, tiingo *services.Tiingo) *BotWorker {
 			}
 		}
 	}()
-
-	return bw
 }
 
 // calculateAccountValue calculates the account value for a portfolio
@@ -122,24 +135,52 @@ func (bw *BotWorker) calculateAccountValue(doc *firestore.DocumentSnapshot) {
 	log.Printf("calculating portfolio: %v\n", doc.Ref.ID)
 
 	oldAccountValue := portfolio.AccountValue
-	historyChanged := false
 
+	// Calculate the portfolio value
+	if !bw.calculatePortfolioValue(portfolio, doc.Ref.ID) {
+		return
+	}
+
+	// Update historical values
+	historyChanged := bw.updateHistoricalValue(portfolio)
+
+	// Save updates if needed
+	if !historyChanged && oldAccountValue == portfolio.AccountValue {
+		log.Printf("no change in account value for portfolio: %v\n", doc.Ref.ID)
+		return
+	}
+
+	bw.savePortfolioUpdates(portfolio, doc)
+}
+
+// calculatePortfolioValue calculates the current value of a portfolio based on holdings
+// Returns false if any ticker data is missing
+func (bw *BotWorker) calculatePortfolioValue(portfolio *models.Portfolio, portfolioID string) bool {
 	portfolio.AccountValue = portfolio.Cash
 
 	for ticker, holding := range portfolio.Holdings {
 		price, ok := bw.latestPrices[ticker]
+		// TODO: download ALL missing tickers
 		if !ok {
-			log.Printf("failed to find ticker data for \"%s\" while calculating portfolio: %v\nadding %s to watchlist...\n", ticker, doc.Ref.ID, ticker)
+			log.Printf("failed to find ticker data for \"%s\" while calculating portfolio: %v\nadding %s to watchlist...\n", ticker, portfolioID, ticker)
 			err := bw.addTickers(ticker)
 
 			if err != nil {
 				log.Printf("error while adding ticker: %v\n", err)
 			}
-			return
+			return false
 		}
 
 		portfolio.AccountValue += holding.NumShares * price
 	}
+
+	return true
+}
+
+// updateHistoricalValue updates the historical account value records
+// Returns true if any changes were made
+func (bw *BotWorker) updateHistoricalValue(portfolio *models.Portfolio) bool {
+	historyChanged := false
 
 	if len(portfolio.HistoricalAccountValue) == 0 {
 		portfolio.HistoricalAccountValue = make([]*models.AccountValueHistory, 0)
@@ -160,11 +201,11 @@ func (bw *BotWorker) calculateAccountValue(doc *firestore.DocumentSnapshot) {
 		historyChanged = true
 	}
 
-	if !historyChanged && oldAccountValue == portfolio.AccountValue {
-		log.Printf("no change in account value for portfolio: %v\n", doc.Ref.ID)
-		return
-	}
+	return historyChanged
+}
 
+// savePortfolioUpdates saves the updated portfolio values to the database
+func (bw *BotWorker) savePortfolioUpdates(portfolio *models.Portfolio, doc *firestore.DocumentSnapshot) {
 	log.Printf("updated portfolio: %v\nlatest account value: %v\n", doc.Ref.ID, portfolio.AccountValue)
 	_, err := doc.Ref.Update(context.Background(), []firestore.Update{
 		{Path: "accountValue", Value: portfolio.AccountValue},
@@ -296,31 +337,15 @@ func (bw *BotWorker) GetDailyStockData(c *gin.Context) {
 // @Failure 500 {object} ResultData "Server error"
 // @Router /transact [post]
 func (bw *BotWorker) MakeTransaction(c *gin.Context) {
-	// Get the bot from the context (set by AuthHandler)
-	bot, ok := c.Get("bot")
+	// Get the portfolio from context
+	portfolio, ref, ok := bw.getPortfolioFromContext(c)
 	if !ok {
-		c.AbortWithStatusJSON(401, NewResultPacket("error: not authenticated", false))
 		return
 	}
 
-	// Type assertion to get the portfolio
-	portfolio, ok := bot.(*models.Portfolio)
+	// Parse the transaction request
+	request, ok := bw.parseTransactionRequest(c)
 	if !ok {
-		c.AbortWithStatusJSON(500, NewResultPacket("error: failed to retrieve portfolio information", false))
-		return
-	}
-
-	// Read and parse the request body
-	body, err := c.GetRawData()
-	if err != nil {
-		c.AbortWithStatusJSON(500, NewResultPacket("error: failed to retrieve request body", false))
-		return
-	}
-
-	request := &TransactionRequestData{}
-	err = json.Unmarshal(body, request)
-	if err != nil {
-		c.AbortWithStatusJSON(500, NewResultPacket("error: failed to parse request body", false))
 		return
 	}
 
@@ -331,19 +356,80 @@ func (bw *BotWorker) MakeTransaction(c *gin.Context) {
 		return
 	}
 
+	// Create and execute the transaction
+	transaction, ok := bw.createAndExecuteTransaction(c, portfolio, request, cost, ref)
+	if !ok {
+		return
+	}
+
+	// Save the transaction to the database
+	ok = bw.saveTransactionToDatabase(c, portfolio, transaction)
+	if !ok {
+		return
+	}
+
+	c.JSON(200, NewResultPacket("successfully executed transaction", true))
+}
+
+// getPortfolioFromContext retrieves the portfolio and database reference from the context
+func (bw *BotWorker) getPortfolioFromContext(c *gin.Context) (*models.Portfolio, *firestore.DocumentRef, bool) {
+	// Get the bot from the context (set by AuthHandler)
+	bot, ok := c.Get("bot")
+	if !ok {
+		c.AbortWithStatusJSON(401, NewResultPacket("error: not authenticated", false))
+		return nil, nil, false
+	}
+
+	// Type assertion to get the portfolio
+	portfolio, ok := bot.(*models.Portfolio)
+	if !ok {
+		c.AbortWithStatusJSON(500, NewResultPacket("error: failed to retrieve portfolio information", false))
+		return nil, nil, false
+	}
+
 	// Get the database reference
 	refUntyped, ok := c.Get("db_ref")
 	if !ok {
 		c.AbortWithStatusJSON(500, NewResultPacket("error: failed to retrieve portfolio database reference", false))
-		return
+		return nil, nil, false
 	}
 
 	ref, ok := refUntyped.(*firestore.DocumentRef)
 	if !ok {
 		c.AbortWithStatusJSON(500, NewResultPacket("error: failed to retrieve portfolio database reference", false))
-		return
+		return nil, nil, false
 	}
 
+	return portfolio, ref, true
+}
+
+// parseTransactionRequest parses the transaction request from the request body
+func (bw *BotWorker) parseTransactionRequest(c *gin.Context) (*TransactionRequestData, bool) {
+	// Read and parse the request body
+	body, err := c.GetRawData()
+	if err != nil {
+		c.AbortWithStatusJSON(500, NewResultPacket("error: failed to retrieve request body", false))
+		return nil, false
+	}
+
+	request := &TransactionRequestData{}
+	err = json.Unmarshal(body, request)
+	if err != nil {
+		c.AbortWithStatusJSON(500, NewResultPacket("error: failed to parse request body", false))
+		return nil, false
+	}
+
+	return request, true
+}
+
+// createAndExecuteTransaction creates and executes a transaction
+func (bw *BotWorker) createAndExecuteTransaction(
+	c *gin.Context, 
+	portfolio *models.Portfolio, 
+	request *TransactionRequestData, 
+	cost float64, 
+	ref *firestore.DocumentRef,
+) (*models.Transaction, bool) {
 	// Create the transaction object
 	transaction := &models.Transaction{
 		Time:      time.Now(),
@@ -355,22 +441,31 @@ func (bw *BotWorker) MakeTransaction(c *gin.Context) {
 	}
 
 	// Execute the transaction on the portfolio
-	err = portfolio.Execute(transaction)
+	err := portfolio.Execute(transaction)
 	if err != nil {
 		c.AbortWithStatusJSON(401, NewResultPacket(err.Error(), false))
-		return
+		return nil, false
 	}
 
+	return transaction, true
+}
+
+// saveTransactionToDatabase saves the transaction to the database
+func (bw *BotWorker) saveTransactionToDatabase(
+	c *gin.Context, 
+	portfolio *models.Portfolio, 
+	transaction *models.Transaction,
+) bool {
 	// Save the transaction to the database
 	doc, _, err := bw.db.Collection("transactions").Add(context.Background(), transaction)
 	if err != nil {
 		c.AbortWithStatusJSON(500, NewResultPacket("error: failed to save transaction", false))
-		return
+		return false
 	}
 
 	// Add the transaction reference to the portfolio
 	portfolio.TransactionReferences = append(portfolio.TransactionReferences, doc)
-	c.JSON(200, NewResultPacket("successfully executed transaction", true))
+	return true
 }
 
 // GetPortfolio returns the user's portfolio with all holdings and transactions.
