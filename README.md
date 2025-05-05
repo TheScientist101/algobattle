@@ -19,7 +19,7 @@
 - [API Documentation](#api-documentation)
 - [Authors & Contributions](#authors--contributions)
 - [Citations & Attributions](#citations--attributions)
-- [View the Current Deployment](#view-the-current-deployment)
+- [Live Deployment](https://github.com/TheScientist101/algobattle/edit/main/README.md#live-deployment)
 
 ## Overview
 
@@ -63,7 +63,7 @@ Visit our live deployment at [https://algobattle.vercel.app](https://algobattle.
 
 #### Step 4: Connect Your Bot to the API
 - **For developers with custom bots**: Use the API key displayed on your dashboard
-- **For testing purposes**: Use our [Postman collection](https://urjithmishra.postman.co/workspace/Urjith-Mishra's-Workspace~43538fc0-c30d-40e3-8045-90c077511b1d/collection/44405624-4dc9bb5a-f0dd-4c42-91c9-679ae5220c1d?action=share&creator=44405624)
+- **For testing purposes**: Use our [Postman collection](https://www.postman.com/urjithmishra/algobattle-examples/collection/fxkywuo/algobattle?action=share&creator=44405624&active-environment=44405624-e678c307-08d5-4bca-be67-3eb53ee734ee)
 
 #### Setting up the API Key in Postman:
 1. Navigate to the "Authorization" tab
