@@ -2,6 +2,7 @@ package utils
 
 import (
 	"iter"
+	"sync"
 )
 
 const (
@@ -18,8 +19,9 @@ type node[T any] struct {
 
 type Comparator[T any] func(a, b T) int
 
-// TreeSet is a Red-Black Tree implementation of a set
+// TreeSet is a thread-safe Red-Black Tree implementation of a set
 type TreeSet[T any] struct {
+	mu         sync.RWMutex // Protects concurrent access
 	root       *node[T]
 	comparator Comparator[T]
 }
@@ -29,6 +31,86 @@ func NewTreeSet[T any](comparator Comparator[T]) *TreeSet[T] {
 	return &TreeSet[T]{
 		comparator: comparator,
 	}
+}
+
+// Insert adds values to the TreeSet
+func (t *TreeSet[T]) Insert(values ...T) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	for _, value := range values {
+		t.root = t.insert(t.root, value)
+		if t.root != nil {
+			t.root.color = BLACK
+		}
+	}
+}
+
+// Remove removes values from the TreeSet
+func (t *TreeSet[T]) Remove(values ...T) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	for _, value := range values {
+		t.root = t.delete(t.root, value)
+		if t.root != nil {
+			t.root.color = BLACK
+		}
+	}
+}
+
+// Contains checks if the TreeSet contains the given value
+func (t *TreeSet[T]) Contains(value T) bool {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	x := t.root
+	for x != nil {
+		if compareResult := t.comparator(value, x.value); compareResult < 0 {
+			x = x.left
+		} else if compareResult > 0 {
+			x = x.right
+		} else {
+			return true
+		}
+	}
+	return false
+}
+
+// All returns an iterator over all values in the TreeSet
+func (t *TreeSet[T]) All() iter.Seq[T] {
+	// Take a snapshot of the tree while holding the lock
+	t.mu.RLock()
+	values := t.AsSlice()
+	t.mu.RUnlock()
+
+	// Return an iterator over the snapshot
+	return func(yield func(T) bool) {
+		for _, v := range values {
+			if !yield(v) {
+				return
+			}
+		}
+	}
+}
+
+// AsSlice returns all values in the TreeSet as a slice
+func (t *TreeSet[T]) AsSlice() []T {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	slice := make([]T, 0)
+	var traverse func(*node[T])
+	traverse = func(n *node[T]) {
+		if n == nil {
+			return
+		}
+		traverse(n.left)
+		slice = append(slice, n.value)
+		traverse(n.right)
+	}
+	traverse(t.root)
+	return slice
 }
 
 func (n *node[T]) isRed() bool {
@@ -66,16 +148,6 @@ func (n *node[T]) flipColors() {
 	}
 }
 
-// Insert adds values to the TreeSet
-func (t *TreeSet[T]) Insert(values ...T) {
-	for _, value := range values {
-		t.root = t.insert(t.root, value)
-		if t.root != nil {
-			t.root.color = BLACK
-		}
-	}
-}
-
 func (t *TreeSet[T]) insert(n *node[T], value T) *node[T] {
 	if n == nil {
 		return &node[T]{value: value, color: RED}
@@ -98,66 +170,6 @@ func (t *TreeSet[T]) insert(n *node[T], value T) *node[T] {
 	}
 
 	return n
-}
-
-// Remove removes values from the TreeSet
-func (t *TreeSet[T]) Remove(values ...T) {
-	for _, value := range values {
-		t.root = t.delete(t.root, value)
-		if t.root != nil {
-			t.root.color = BLACK // Ensure root is always black
-		}
-	}
-}
-
-// Contains checks if the TreeSet contains the given value
-func (t *TreeSet[T]) Contains(value T) bool {
-	x := t.root
-	for x != nil {
-		if compareResult := t.comparator(value, x.value); compareResult < 0 {
-			x = x.left
-		} else if compareResult > 0 {
-			x = x.right
-		} else {
-			return true
-		}
-	}
-	return false
-}
-
-// All returns an iterator over all values in the TreeSet
-func (t *TreeSet[T]) All() iter.Seq[T] {
-	return func(yield func(T) bool) {
-		var stack []*node[T]
-		curr := t.root
-
-		for curr != nil || len(stack) > 0 {
-			for curr != nil {
-				stack = append(stack, curr)
-				curr = curr.left
-			}
-
-			curr = stack[len(stack)-1]
-			stack = stack[:len(stack)-1]
-
-			if !yield(curr.value) {
-				return
-			}
-
-			curr = curr.right
-		}
-	}
-}
-
-// AsSlice returns all values in the TreeSet as a slice
-func (t *TreeSet[T]) AsSlice() []T {
-	slice := make([]T, 0)
-	t.All()(func(value T) bool {
-		slice = append(slice, value)
-		return true
-	})
-
-	return slice
 }
 
 func (t *TreeSet[T]) delete(h *node[T], value T) *node[T] {

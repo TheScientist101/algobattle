@@ -122,6 +122,20 @@ func (bw *BotWorker) startAccountValueCalculator(accountValuer chan bool) {
 			}
 
 			for _, doc := range docs {
+				portfolio := &models.Portfolio{}
+				doc.DataTo(portfolio)
+
+				for ticker, _ := range portfolio.Holdings {
+					bw.tiingo.AddTickers(ticker)
+				}
+			}
+
+			err = bw.addTickers()
+			if err != nil {
+				log.Printf("error downloading ticker data: %v\n", err)
+			}
+
+			for _, doc := range docs {
 				go bw.calculateAccountValue(doc)
 			}
 		}
@@ -161,14 +175,9 @@ func (bw *BotWorker) calculatePortfolioValue(portfolio *models.Portfolio, portfo
 
 	for ticker, holding := range portfolio.Holdings {
 		price, ok := bw.latestPrices[ticker]
-		// TODO: download ALL missing tickers
 		if !ok {
 			log.Printf("failed to find ticker data for \"%s\" while calculating portfolio: %v\nadding %s to watchlist...\n", ticker, portfolioID, ticker)
-			err := bw.addTickers(ticker)
-
-			if err != nil {
-				log.Printf("error while adding ticker: %v\n", err)
-			}
+			bw.tiingo.AddTickers(ticker)
 			hasAllData = false
 		}
 
