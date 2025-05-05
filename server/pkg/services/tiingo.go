@@ -1,43 +1,52 @@
-package main
+package services
 
 import (
-	"cmp"
 	"context"
+	"cmp"
 	"encoding/gob"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"golang.org/x/sync/errgroup"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"golang.org/x/sync/errgroup"
+	"urjith.dev/algobattle/pkg/indicators"
+	"urjith.dev/algobattle/pkg/models"
+	"urjith.dev/algobattle/pkg/utils"
 )
 
-const baseURL = "https://api.tiingo.com"
-const dataStart = "1900-01-01" // for Rows caching and downloading
-const dailyFreq = "daily"      // for historical daily calls
-const cacheFolder = "./data"
-const dailyCacheJSON = "dailycache.json"
-const dailyCacheGOB = "dailycache.gob"
+const (
+	baseURL     = "https://api.tiingo.com"
+	dataStart   = "1900-01-01" // for Rows caching and downloading
+	dailyFreq   = "daily"      // for historical daily calls
+	cacheFolder = "./data"
+	dailyCacheJSON = "dailycache.json"
+	dailyCacheGOB  = "dailycache.gob"
+)
 
+// Tiingo is a client for the Tiingo API
 type Tiingo struct {
 	Token      string
-	tickers    *TreeSet[string]
-	DailyCache *History
-	Indicators []Indicator
+	tickers    *utils.TreeSet[string]
+	DailyCache *models.History
+	Indicators []indicators.Indicator
 }
 
+// NewTiingo creates a new Tiingo client
 func NewTiingo(token string) *Tiingo {
 	return &Tiingo{
 		token,
-		NewTreeSet[string](cmp.Compare),
-		NewHistory(),
-		make([]Indicator, 0),
+		utils.NewTreeSet[string](cmp.Compare),
+		models.NewHistory(),
+		make([]indicators.Indicator, 0),
 	}
 }
 
+// AddTickers adds tickers to the watchlist
 func (t *Tiingo) AddTickers(newTickers ...string) {
 	for i, ticker := range newTickers {
 		newTickers[i] = strings.ToUpper(ticker)
@@ -46,12 +55,14 @@ func (t *Tiingo) AddTickers(newTickers ...string) {
 	t.tickers.Insert(newTickers...)
 }
 
+// LastPriceResponse represents the response from the Tiingo API for last price
 type LastPriceResponse struct {
 	Ticker   string  `json:"ticker"`
 	TngoLast float64 `json:"tngoLast"`
 }
 
-func (t *Tiingo) fetchCurrPrices() map[string]float64 {
+// FetchCurrPrices fetches the current prices for all tickers
+func (t *Tiingo) FetchCurrPrices() map[string]float64 {
 	tickers := t.tickers.AsSlice()
 	tickersStr := strings.Join(tickers, ",")
 
@@ -96,7 +107,8 @@ func (t *Tiingo) fetchCurrPrices() map[string]float64 {
 	return mappings
 }
 
-func (t *Tiingo) historicalDaily(ticker string) error {
+// HistoricalDaily fetches historical daily data for a ticker
+func (t *Tiingo) HistoricalDaily(ticker string) error {
 	request, err := http.NewRequest(http.MethodGet,
 		fmt.Sprintf(
 			"%s/tiingo/daily/%s/prices?startDate=%s&resampleFreq=%s&format=%s&token=%s",
@@ -132,16 +144,17 @@ func (t *Tiingo) historicalDaily(ticker string) error {
 		return fmt.Errorf(response.Status + " when fetching " + ticker)
 	}
 
-	results := make([]PackedPeriod, 0, 365*5)
+	results := make([]models.PackedPeriod, 0, 365*5)
 	if err = json.NewDecoder(response.Body).Decode(&results); err != nil {
 		return err
 	}
 
-	t.DailyCache.addData(results, ticker)
+	t.DailyCache.AddData(results, ticker)
 
 	return nil
 }
 
+// LoadData loads data from cache and downloads missing data
 func (t *Tiingo) LoadData(useJSON bool) error {
 	if len(t.DailyCache.Rows) != 0 {
 		log.Println("Warning := Overwriting DailyCache with file data")
@@ -158,7 +171,7 @@ func (t *Tiingo) LoadData(useJSON bool) error {
 	for ticker := range t.tickers.All() {
 		if _, ok := t.DailyCache.Tickers[ticker]; !ok {
 			errs.Go(func() error {
-				return t.historicalDaily(ticker)
+				return t.HistoricalDaily(ticker)
 			})
 		}
 	}
@@ -172,12 +185,13 @@ func (t *Tiingo) LoadData(useJSON bool) error {
 	return err
 }
 
+// DownloadAllTickers downloads data for all tickers
 func (t *Tiingo) DownloadAllTickers() error {
 	errs, _ := errgroup.WithContext(context.Background())
 
 	for ticker := range t.tickers.All() {
 		errs.Go(func() error {
-			return t.historicalDaily(ticker)
+			return t.HistoricalDaily(ticker)
 		})
 	}
 
@@ -190,13 +204,14 @@ func (t *Tiingo) DownloadAllTickers() error {
 	return err
 }
 
+// DownloadMissingTickers downloads data for tickers not in the cache
 func (t *Tiingo) DownloadMissingTickers() error {
 	errs, _ := errgroup.WithContext(context.Background())
 
 	for ticker := range t.tickers.All() {
 		if _, ok := t.DailyCache.Tickers[ticker]; !ok {
 			errs.Go(func() error {
-				return t.historicalDaily(ticker)
+				return t.HistoricalDaily(ticker)
 			})
 		}
 	}
@@ -210,6 +225,7 @@ func (t *Tiingo) DownloadMissingTickers() error {
 	return err
 }
 
+// LoadCaches loads caches from disk
 func (t *Tiingo) LoadCaches(useJSON bool) error {
 	if useJSON {
 		err := os.Mkdir(cacheFolder, 0777)
@@ -237,7 +253,7 @@ func (t *Tiingo) LoadCaches(useJSON bool) error {
 		return err
 	}
 
-	packed := &PackedHistory{}
+	packed := &models.PackedHistory{}
 	err = gob.NewDecoder(file).Decode(packed)
 	if err != nil {
 		return err
@@ -248,6 +264,7 @@ func (t *Tiingo) LoadCaches(useJSON bool) error {
 	return nil
 }
 
+// SaveCaches saves caches to disk
 func (t *Tiingo) SaveCaches() error {
 	err := os.Mkdir(cacheFolder, 0777)
 	if err != nil && !os.IsExist(err) {
@@ -280,14 +297,16 @@ func (t *Tiingo) SaveCaches() error {
 	return nil
 }
 
-func (t *Tiingo) AddIndicator(indicator Indicator) {
+// AddIndicator adds an indicator to the list
+func (t *Tiingo) AddIndicator(indicator indicators.Indicator) {
 	t.Indicators = append(t.Indicators, indicator)
 }
 
+// CalculateIndicators calculates all indicators for the daily cache
 func (t *Tiingo) CalculateIndicators() error {
 	log.Println("Calculating indicators...")
 
-	t.DailyCache.CalculateIndicators(t.Indicators)
+	indicators.CalculateIndicators(t.DailyCache, t.Indicators)
 
 	return t.SaveCaches()
 }

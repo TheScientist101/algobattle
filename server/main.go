@@ -11,6 +11,9 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/olahol/melody"
 	"google.golang.org/api/option"
+	"urjith.dev/algobattle/internal/bot"
+	"urjith.dev/algobattle/internal/handlers"
+	"urjith.dev/algobattle/pkg/services"
 )
 
 func main() {
@@ -44,17 +47,10 @@ func main() {
 		}
 	})
 
-	httpRoutes := r.Group("/")
+	tiingo := services.NewTiingo(os.Getenv("TIINGO_TOKEN"))
+	botworker := bot.NewBotWorker(db, tiingo)
 
-	botworker := NewBotWorker(db, NewTiingo(os.Getenv("TIINGO_TOKEN")))
-
-	httpRoutes.Use(botworker.AuthHandler)
-
-	httpRoutes.GET("/portfolio", botworker.GetPortfolio)
-	httpRoutes.GET("/add_ticker", botworker.AddTicker)
-	httpRoutes.POST("/transact", botworker.MakeTransaction, botworker.SavePortfolio)
-	httpRoutes.GET("/daily_stock_data", botworker.GetDailyStockData)
-	httpRoutes.GET("/live_stock_data", botworker.GetLiveStockData)
+	handlers.SetupRoutes(r, botworker)
 
 	// TODO: Websockets
 	//m.HandleMessage(botworker.TradingStream)

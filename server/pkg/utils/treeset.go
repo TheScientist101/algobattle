@@ -1,4 +1,4 @@
-package main
+package utils
 
 import (
 	"iter"
@@ -18,11 +18,13 @@ type node[T any] struct {
 
 type Comparator[T any] func(a, b T) int
 
+// TreeSet is a Red-Black Tree implementation of a set
 type TreeSet[T any] struct {
 	root       *node[T]
 	comparator Comparator[T]
 }
 
+// NewTreeSet creates a new TreeSet with the given comparator
 func NewTreeSet[T any](comparator Comparator[T]) *TreeSet[T] {
 	return &TreeSet[T]{
 		comparator: comparator,
@@ -64,6 +66,7 @@ func (n *node[T]) flipColors() {
 	}
 }
 
+// Insert adds values to the TreeSet
 func (t *TreeSet[T]) Insert(values ...T) {
 	for _, value := range values {
 		t.root = t.insert(t.root, value)
@@ -97,6 +100,7 @@ func (t *TreeSet[T]) insert(n *node[T], value T) *node[T] {
 	return n
 }
 
+// Remove removes values from the TreeSet
 func (t *TreeSet[T]) Remove(values ...T) {
 	for _, value := range values {
 		t.root = t.delete(t.root, value)
@@ -106,6 +110,7 @@ func (t *TreeSet[T]) Remove(values ...T) {
 	}
 }
 
+// Contains checks if the TreeSet contains the given value
 func (t *TreeSet[T]) Contains(value T) bool {
 	x := t.root
 	for x != nil {
@@ -120,6 +125,7 @@ func (t *TreeSet[T]) Contains(value T) bool {
 	return false
 }
 
+// All returns an iterator over all values in the TreeSet
 func (t *TreeSet[T]) All() iter.Seq[T] {
 	return func(yield func(T) bool) {
 		var stack []*node[T]
@@ -143,6 +149,7 @@ func (t *TreeSet[T]) All() iter.Seq[T] {
 	}
 }
 
+// AsSlice returns all values in the TreeSet as a slice
 func (t *TreeSet[T]) AsSlice() []T {
 	slice := make([]T, 0)
 	t.All()(func(value T) bool {
