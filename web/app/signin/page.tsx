@@ -19,6 +19,12 @@ import { useRouter } from "next/navigation";
 import { ensureUserDocExists } from "@/utils/userData";
 import LoadingScreen from "@/components/loading";
 
+/**
+ * Login page for returning users.
+ * - Allows sign in via Firebase email/password or Google OAuth.
+ * - Redirects to dashboard on success.
+ * - Displays loading state and errors inline.
+ */
 export default function SigninPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -26,11 +32,16 @@ export default function SigninPage() {
   const [displayError, setDisplayError] = useState("");
   const router = useRouter();
 
+  /**
+   * Signs in the user with email and password using Firebase Auth.
+   * Also ensures Firestore user doc exists and redirects to homepage.
+   * Sets the displayed error (displayError) if something went wrong
+   */
   const signInUsernamePassword = async () => {
     try {
       setLoading(true);
       await signIn(username, password);
-      ensureUserDocExists();
+      await ensureUserDocExists();
       router.push("/");
     } catch (error) {
       console.error(error);
@@ -44,29 +55,31 @@ export default function SigninPage() {
     }
   };
 
-  const googleSignIn = () => {
+  /**
+   * Signs in the user using Google OAuth via Firebase.
+   * Also ensures Firestore user doc exists and redirects.
+   * Logs any errors but does not display them, as this should never happen
+   */
+  const googleSignIn = async () => {
     try {
       setLoading(true);
-      signInWithGoogle();
-      ensureUserDocExists();
+      await signInWithGoogle();
+      await ensureUserDocExists();
       router.push("/");
     } catch (error) {
       console.error(error);
-      if (error instanceof Error) {
-        setDisplayError(error.message);
-      } else {
-        setDisplayError("Something went wrong.");
-      }
     } finally {
       setLoading(false);
     }
   };
 
+  // Show loading screen if waiting on auth
   if (loading) return <LoadingScreen />;
 
   return (
     <div className="flex min-h-screen items-center justify-center dark">
       <div className="grid w-150 gap-6">
+        {/* Header */}
         <div className="flex flex-col items-center gap-4 text-center">
           {displayError && <p className="text-red-50">{displayError}</p>}
           <h1 className="text-3xl font-bold text-white">
@@ -76,6 +89,8 @@ export default function SigninPage() {
             Enter your credentials to access your account
           </p>
         </div>
+
+        {/* Login Card */}
         <Card>
           <CardHeader>
             <CardTitle>Login</CardTitle>
@@ -89,6 +104,8 @@ export default function SigninPage() {
               </Link>
             </CardDescription>
           </CardHeader>
+
+          {/* Form Inputs */}
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Username</Label>
@@ -113,6 +130,8 @@ export default function SigninPage() {
               />
             </div>
           </CardContent>
+
+          {/* Submit and Social Sign-in */}
           <CardFooter className="flex flex-col">
             <Button
               className="w-full"
@@ -122,6 +141,7 @@ export default function SigninPage() {
               Login
             </Button>
 
+            {/* Divider with label */}
             <div className="relative my-4 w-full">
               <Separator className="my-4" />
               <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
@@ -129,12 +149,14 @@ export default function SigninPage() {
               </div>
             </div>
 
+            {/* Google Sign-In Button */}
             <Button
               variant="outline"
               className="w-full"
               size="lg"
               onClick={googleSignIn}
             >
+              {/* Parts of the Google logo */}
               <svg viewBox="0 0 24 24" className="mr-2 h-5 w-5">
                 <path
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"

@@ -1,3 +1,10 @@
+/**
+ * Displays a spinning loader animation to indicate a loading state.
+ * 
+ * Renders:
+ * - A circular spinner using Tailwind classes.
+ * - Accessible attributes for screen readers.
+ */
 export default function LoadingScreen() {
     return (
         <div

@@ -20,20 +20,31 @@ import { useRouter } from "next/compat/router";
 import { ensureUserDocExists } from "@/utils/userData";
 import LoadingScreen from "@/components/loading";
 
+/**
+ * Renders a sign-up form with username, password, confirm password fields.
+ * Allows users to create an account via Firebase Auth (email/password or Google).
+ */
+
 export default function SignupPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmedPassword, setConfirmedPassword] = useState("");
+
   const [loading, setLoading] = useState(false);
   const [displayError, setDisplayError] = useState("");
+
   const router = useRouter();
 
+  /**
+   * Handles email/password account creation.
+   * Validates input, calls `signUp` helper method, ensures user doc exists, and redirects to the dashboard.
+   */
   const createAccount = async () => {
     if (username && password && password === confirmedPassword) {
       try {
         setLoading(true);
-        signUp(username, password);
-        ensureUserDocExists();
+        await signUp(username, password);
+        await ensureUserDocExists();
         if (router) router.push("/");
       } catch (error) {
         console.error(error);
@@ -48,29 +59,30 @@ export default function SignupPage() {
     }
   };
 
-  const googleSignIn = () => {
+  /**
+   * Handles Google sign-in flow via Firebase popup with the signInWithGoogle helper method.
+   * Ensures Firestore user doc exists and redirects to dashboard.
+   */
+  const googleSignIn = async () => {
     try {
       setLoading(true);
-      signInWithGoogle();
-      ensureUserDocExists();
+      await signInWithGoogle();
+      await ensureUserDocExists();
       if (router) router.push("/");
     } catch (error) {
       console.error(error);
-      if (error instanceof Error) {
-        setDisplayError(error.message);
-      } else {
-        setDisplayError("Something went wrong.");
-      }
     } finally {
       setLoading(false);
     }
   };
 
+  // Show loading screen if waiting on auth
   if (loading) return <LoadingScreen />;
 
   return (
     <div className="flex min-h-screen w-full items-center justify-center dark">
       <div className="grid w-150 gap-6">
+        {/* Header */}
         <div className="flex flex-col items-center gap-2 text-center">
           <div className="flex items-center gap-2 text-2xl font-semibold">
             <ArrowRightIcon className="h-6 w-6" />
@@ -80,8 +92,11 @@ export default function SignupPage() {
           <p className="text-muted-foreground">
             Enter your information to get started
           </p>
+          {/* Display error if signup fails */}
           {displayError && <p className="text-red-50">{displayError}</p>}
         </div>
+
+        {/* Signup Card */}
         <Card>
           <CardHeader>
             <CardTitle>Sign Up</CardTitle>
@@ -95,6 +110,8 @@ export default function SignupPage() {
               </Link>
             </CardDescription>
           </CardHeader>
+
+          {/* Form Fields */}
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="username">Username</Label>
@@ -127,11 +144,14 @@ export default function SignupPage() {
               />
             </div>
           </CardContent>
+
+          {/* Submit and Social Auth */}
           <CardFooter className="flex flex-col">
             <Button className="w-full" size="lg" onClick={createAccount}>
               Create Account
             </Button>
 
+            {/* Divider */}
             <div className="relative my-4 w-full">
               <Separator className="my-4" />
               <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
@@ -139,12 +159,14 @@ export default function SignupPage() {
               </div>
             </div>
 
+            {/* Google Auth */}
             <Button
               variant="outline"
               className="w-full"
               size="lg"
               onClick={googleSignIn}
             >
+              {/* Parts of the Google logo */}
               <svg viewBox="0 0 24 24" className="mr-2 h-5 w-5">
                 <path
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"

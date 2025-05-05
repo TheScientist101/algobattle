@@ -16,9 +16,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
 import { useEffect, useState } from "react";
 import { WithBot, Trade } from "@/utils/types";
 import { getTradesForBot } from "@/utils/botData";
+
+/**
+ * A component that renders a table of executed trades for a specific trading bot.
+ * 
+ * - Fetches trade data from Firestore using a bot ID.
+ * - Displays ticker, action type, number of shares, unit cost, and timestamp.
+ * - Styled using ShadCN UI primitives for visual consistency with the app.
+ */
 
 export const columns: ColumnDef<Trade>[] = [
   {
@@ -53,7 +62,7 @@ export const columns: ColumnDef<Trade>[] = [
       }).format(unitCost);
       return <div className="text-left">{formatted}</div>;
     },
-  },  
+  },
   {
     accessorKey: "time",
     header: "Time",
@@ -64,9 +73,22 @@ export const columns: ColumnDef<Trade>[] = [
   },
 ];
 
+/**
+ * TradeTable component
+ *
+ * Renders a table of trade records for a specific bot.
+ * Fetches trade data from Firestore when a bot ID is provided.
+ *
+ * @param {WithBot} props - Contains `botId`, used to query trade data.
+ * @returns A styled, responsive table of bot trade activity.
+ */
 export function TradeTable({ botId }: WithBot) {
-  const [data, setData] = useState<Trade[]>([]);
+  const [data, setData] = useState<Trade[]>([]); // Trade data loaded from backend
 
+  /**
+   * Load trade history for the specified bot ID.
+   * Executes on component mount and when `botId` changes.
+   */
   useEffect(() => {
     const get = async () => {
       if (!botId) return;
@@ -76,6 +98,7 @@ export function TradeTable({ botId }: WithBot) {
     get();
   }, [botId]);
 
+  // Initialize table instance with trade data and column configuration
   const table = useReactTable({
     data,
     columns,
@@ -85,6 +108,7 @@ export function TradeTable({ botId }: WithBot) {
   return (
     <div className="w-full rounded-lg border bg-background text-foreground shadow-md">
       <Table>
+        {/* Table Header */}
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
@@ -104,8 +128,11 @@ export function TradeTable({ botId }: WithBot) {
             </TableRow>
           ))}
         </TableHeader>
+
+        {/* Table Body */}
         <TableBody>
           {table.getRowModel().rows.length > 0 ? (
+            // Render table rows
             table.getRowModel().rows.map((row) => (
               <TableRow key={row.id}>
                 {row.getVisibleCells().map((cell) => (
@@ -116,6 +143,7 @@ export function TradeTable({ botId }: WithBot) {
               </TableRow>
             ))
           ) : (
+            // Fallback: show when no trades are available
             <TableRow>
               <TableCell colSpan={columns.length} className="text-center py-6">
                 No data available

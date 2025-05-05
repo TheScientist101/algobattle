@@ -16,12 +16,23 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/authContext";
 
+/**
+ * Renders the persistent sidebar used throughout the app.
+ * 
+ * - Displays a top logo/header
+ * - Provides main navigation links ( Dashboard, Leaderboard)
+ * - Shows the currently authenticated user's avatar and name in the footer
+ * 
+ * Pulls user data from Firebase Auth via `useAuth` and passes props to `Sidebar`.
+ */
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user } = useAuth();
+
+  // Prepare sidebar data for navigation and user section
   const data = {
     user: {
-      name: user?.displayName || "Hey there!",
-      avatar: `https://robohash.org/${user?.uid}`,
+      name: user?.displayName || "Hey there!", 
+      avatar: `https://robohash.org/${user?.uid}`, 
     },
     navMain: [
       {
@@ -36,8 +47,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       },
     ],
   };
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
+      {/* Sidebar top section with app name */}
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -52,9 +65,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
+
+      {/* Sidebar middle section with navigation links */}
       <SidebarContent>
         <NavMain items={data.navMain} />
       </SidebarContent>
+
+      {/* Sidebar bottom section with user dropdown menu */}
       <SidebarFooter>
         <NavUser person={data.user} />
       </SidebarFooter>
