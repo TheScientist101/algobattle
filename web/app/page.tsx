@@ -4,8 +4,8 @@ import React, { useEffect, useState } from "react";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ChartAreaInteractive } from "@/components/chart-area-interactive";
-import { Bot } from "@/utils/types";
-import { getBotData, getBots } from "@/utils/botData";
+import { Bot, CompleteHoldingData, Holdings } from "@/utils/types";
+import { getBotData, getBots, getHoldings } from "@/utils/botData";
 import { TradeTable } from "@/components/data-table";
 import {
   Select,
@@ -15,30 +15,87 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from "@/hooks/authContext";
-import { Card, CardDescription, CardHeader } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import LoadingScreen from "@/components/loading";
+import axios from "axios";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
 
 export default function Page() {
   const [cards, setCards] = useState<Bot[]>([]);
   const [currBot, setCurrBot] = useState<Bot>();
+  const [tickers, setTickers] = useState<Map<string, CompleteHoldingData>>();
   const [selectedKey, setSelectedKey] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
-    const fetchBots = async () => {
+    const fetchiInitial = async () => {
+      let botId = "";
       setLoading(true);
       const data = await getBots(user?.uid as string);
       setCards(data);
       if (data.length > 0) {
         setSelectedKey(data[0].apiKey);
+        botId = data[0].apiKey;
+        await fetchHoldingsData(botId);
       }
-      setLoading(false);
+      setLoading(true);
     };
 
-    if (user?.uid) {
-      fetchBots();
-    }
+    const fetchHoldingsData = async (botId: string) => {
+      setLoading(true);
+
+      try {
+        const holdings: Holdings = await getHoldings(botId);
+        const response = await axios.get("/api/live-stock", {
+          headers: {
+            Authorization: botId,
+          },
+        });
+        const prices = response.data.payload;
+        const dataMap = new Map<string, CompleteHoldingData>();
+        const tickers = Object.keys(holdings);
+
+        for (const ticker of tickers) {
+          const holding = holdings[ticker];
+          const currentPrice = prices[ticker];
+
+          if (currentPrice === undefined) continue;
+
+          const currentValue = holding.numShares * currentPrice;
+          const gainLoss = currentValue - holding.purchaseValue;
+          const percentChange = (gainLoss / holding.purchaseValue) * 100;
+
+          dataMap.set(ticker, {
+            ...holding,
+            currentPrice,
+            currentValue,
+            gainLoss,
+            percentChange,
+          });
+        }
+        setTickers(dataMap);
+        console.log(dataMap);
+      } catch (error) {
+        console.error("Error:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchiInitial();
   }, [user?.uid]);
 
   useEffect(() => {
@@ -52,7 +109,7 @@ export default function Page() {
     };
 
     fetchBotData();
-  }, [selectedKey]);
+  }, [selectedKey, user?.uid]);
 
   return (
     <SidebarProvider className="dark">
@@ -107,6 +164,66 @@ export default function Page() {
               </div>
             </Card>
           )}
+          <div className="mx-4 mb-8">
+            <h2 className="text-white text-xl font-semibold mb-4">Holdings</h2>
+            {tickers && tickers.size > 0 && (
+              <div className="relative">
+                <Carousel opts={{ align: "start" }}>
+                  <CarouselContent className="-ml-4">
+                    {Array.from(tickers.entries()).map(([ticker, info]) => (
+                      <CarouselItem
+                        key={ticker}
+                        className="pl-4 basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4"
+                      >
+                        <Card className="bg-card text-white h-full">
+                          <CardHeader>
+                            <CardTitle className="text-md">{ticker}</CardTitle>
+                          </CardHeader>
+                          <CardContent className="text-sm space-y-1">
+                            <p>
+                              Current Value:{" "}
+                              {info.currentValue.toLocaleString("en-US", {
+                                style: "currency",
+                                currency: "USD",
+                              })}
+                            </p>
+                            <p>
+                              Change in value:{" "}
+                              <span
+                                className={
+                                  info.gainLoss >= 0
+                                    ? "text-green-400"
+                                    : "text-red-400"
+                                }
+                              >
+                                {info.gainLoss.toFixed(2)}
+                              </span>
+                            </p>
+                            <p>
+                              Percent Change:{" "}
+                              <span
+                                className={
+                                  info.percentChange >= 0
+                                    ? "text-green-400"
+                                    : "text-red-400"
+                                }
+                              >
+                                {info.percentChange.toFixed(2)}%
+                              </span>
+                            </p>
+                          </CardContent>
+                        </Card>
+                      </CarouselItem>
+                    ))}
+                  </CarouselContent>
+
+                  <CarouselPrevious className="absolute left-[-1.5rem] top-1/2 -translate-y-1/2 z-10" />
+                  <CarouselNext className="absolute right-[-1.5rem] top-1/2 -translate-y-1/2 z-10" />
+                </Carousel>
+              </div>
+            )}
+          </div>
+
           <div className="pt-8 px-4">
             {selectedKey ? (
               <>

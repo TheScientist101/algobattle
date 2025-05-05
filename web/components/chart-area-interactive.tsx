@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Area, AreaChart, CartesianGrid, XAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
@@ -155,22 +155,28 @@ export function ChartAreaInteractive({ botId }: WithBot) {
                 }
               }}
             />
+            <YAxis
+              domain={["auto", (dataMax: number) => dataMax * 1.05]}
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+            />
             <ChartTooltip
               cursor={false}
               defaultIndex={isMobile ? -1 : 10}
               content={
                 <ChartTooltipContent
-                labelFormatter={(value) => {
-                  const date = new Date(value);
-                  return isNaN(date.getTime())
-                    ? "Invalid"
-                    : date.toLocaleString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        hour: "numeric",
-                        minute: "2-digit",
-                        hour12: true,
-                      });
+                  labelFormatter={(value) => {
+                    const date = new Date(value);
+                    return isNaN(date.getTime())
+                      ? "Invalid"
+                      : date.toLocaleString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
+                          hour12: true,
+                        });
                   }}
                   indicator="dot"
                 />

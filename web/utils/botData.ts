@@ -13,7 +13,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { v4 } from "uuid";
-import { Bot, LeaderboardEntry, Trade } from "./types";
+import { Bot, Holdings, LeaderboardEntry, Trade } from "./types";
 
 export async function createBot(botName: string, user: string) {
   if (!user) {
@@ -157,4 +157,16 @@ export async function getLeaderboardEntries(): Promise<LeaderboardEntry[]> {
   }
 
   return entries;
+}
+
+export async function getHoldings(botId: string): Promise<Holdings> {
+  const botRef = doc(db, "bots", botId);
+  const botSnap = await getDoc(botRef);
+
+  if (botSnap.exists()) {
+    const data = botSnap.data();
+    return data.holdings as Holdings;
+  } else {
+    throw new Error("Bot document not found");
+  }
 }
