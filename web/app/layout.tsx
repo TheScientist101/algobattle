@@ -1,3 +1,4 @@
+//Layout manager of the website
 "use client";
 
 import { Geist, Geist_Mono } from "next/font/google";
@@ -35,7 +36,6 @@ function AuthWrapper({ children }: { children: React.ReactNode }) {
     const publicRoutes = ["/signin", "/signup"];
     if (loading) return; 
 
-    // Redirect unauthenticated users away from protected routes
     if (!user && !publicRoutes.includes(pathname)) {
       router.push("/signin");
     }
@@ -49,7 +49,6 @@ function AuthWrapper({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Once authenticated (or on a public route), show the app
   return <>{children}</>;
 }
 

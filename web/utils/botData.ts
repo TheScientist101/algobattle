@@ -22,9 +22,8 @@ import { Bot, Holdings, LeaderboardEntry, Trade } from "./types";
  *
  * - Generate a unique bot ID using `uuid`.
  * - Create a bot document with default values: empty transactions, initial cash, etc.
- * - Store the bot in the "bots" collection using `setDoc`.
- * - Update the user document by appending a reference to the new bot using `arrayUnion`.
- * - Ensures each user can manage multiple bots via stored references.
+ * - Store the bot in the "bots" collection`.
+ * - Update the user document by appending a reference to the new bot`.
  *
  * @param {string} botName - The name of the bot to be created.
  * @param {string} user - The UID of the authenticated user creating the bot.
@@ -43,6 +42,7 @@ export async function createBot(botName: string, user: string): Promise<void> {
     apiKey: botId,
     owner: user,
     transactions: [],
+    holdings: [],
     cash: 2000,
     historicalAccountValue: [],
   };
@@ -227,7 +227,7 @@ export async function getLeaderboardEntries(): Promise<LeaderboardEntry[]> {
  *
  * - Fetch the bot document using the bot ID.
  * - If the bot exists, return the "holdings" object directly.
- * - If it doesn't exist, throw an error so the caller can handle it.
+ * - If it doesn't exist, throw an error.
  *
  * @param {string} botId - The ID of the bot.
  * @returns {Promise<Holdings>} - The holdings data for the bot.

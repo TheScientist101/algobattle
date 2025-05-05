@@ -60,6 +60,7 @@ export function NavMain({
       await createBot(name, user?.uid as string);
       setOpen(false);
       setName("");
+      setOpen(false);
     }
   };
 

@@ -45,13 +45,11 @@ export default function LeaderboardPage() {
    */
   useEffect(() => {
     const fetchLeaderboard = async () => {
-      setLoading(true); // Show loading screen during fetch
+      setLoading(true); 
 
       try {
-        // Step 1: Fetch raw leaderboard entries from Firestore
         const data = await getLeaderboardEntries();
 
-        // Step 2: Compute percent change for each bot
         const computed = data.map((entry) => {
           const values = entry.historicalAccountValue;
           const first = values[0]?.value;
@@ -59,7 +57,6 @@ export default function LeaderboardPage() {
 
           let percentChange = 0;
 
-          // Only calculate if both values exist and we have enough history
           if (first != null && last != null && values.length > 1) {
             percentChange = ((last - first) / first) * 100;
           }
@@ -71,17 +68,15 @@ export default function LeaderboardPage() {
           };
         });
 
-        // Step 3: Sort by highest percentChange first
         const sorted = computed.sort(
           (a, b) => b.percentChange - a.percentChange
         );
 
-        // Step 4: Save sorted data to state
         setLeaderboardData(sorted);
       } catch (error) {
         console.error("Failed to fetch leaderboard data", error);
       } finally {
-        setLoading(false); // Hide loading screen
+        setLoading(false); 
       }
     };
 

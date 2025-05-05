@@ -1,3 +1,4 @@
+//Dashboard
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -45,49 +46,50 @@ export default function Page() {
    * 1. Set the loading state (`loading`) to true to indicate data fetching has started.
    * 2. Call `getBots(user?.uid)` to retrieve all bots associated with the current user from Firestore.
    *    Updates `cards` state with the list of `Bot` objects retrieved.
-   * 3. If the user has at least one bot:
-   *    a. Automatically select the first bot by updating `selectedKey` with its API key.
-   *    b. Call `fetchHoldingsData(botId)` to retrieve holdings and live stock prices for that bot.
+   * 3. If the user has at least one bot: Automatically select the first bot by updating `selectedKey` with its API key.
    * 4. Set the loading state (`loading`) back to false to signal data is ready.
    */
   useEffect(() => {
     const fetchiInitial = async () => {
-      let botId = "";
       setLoading(true);
-
-      // Fetch all bots for current user from firebase
       const data = await getBots(user?.uid as string);
       setCards(data);
-
-      // If there are bots, select the first one by default
       if (data.length > 0) {
         setSelectedKey(data[0].apiKey);
-        botId = data[0].apiKey;
-        await fetchHoldingsData(botId); // Fetch holdings for the selected bot
       }
       setLoading(true);
+    };
+    fetchiInitial();
+  }, [user?.uid]);
+
+  //Runs whenever `selectedKey` (the selected bot) changes.
+  useEffect(() => {
+    /**
+     * - Check if a bot is selected (`selectedKey` is defined).
+     * - Call `getBotData(selectedKey)` to retrieve the full bot object from Firestore.
+     * - Update `currBot` state with the retrieved bot data.
+     */
+    const fetchBotData = async () => {
+      if (selectedKey) {
+        const data = await getBotData(selectedKey);
+        setCurrBot(data);
+      }
     };
 
     /**
      * Fetches holdings and live prices for the selected bot and updates ticker data.
-     * - Set loading to true.
      * - Retrieve holdings from Firestore.
      * - Get live stock prices via API using the bot's API key.
      * - For each holding:
      *   - Calculate current value, gain/loss, and percent change.
      *   - Store the data in a Map with the ticker as key.
      * - Update the `tickers` state with the computed Map.
-     * - Set loading to false after completion.
      * Advanced structure used: `Map<string, CompleteHoldingData>`
      */
     const fetchHoldingsData = async (botId: string) => {
-      setLoading(true);
-
       try {
-        // Get holdings data for the selected bot
         const holdings: Holdings = await getHoldings(botId);
         console.log(holdings);
-        // Fetch live stock prices from API
         const response = await axios.get("/api/live-stock", {
           headers: {
             Authorization: botId,
@@ -98,56 +100,39 @@ export default function Page() {
         const dataMap = new Map<string, CompleteHoldingData>();
         const tickers = Object.keys(holdings);
 
-        for (const ticker of tickers) {
-          const holding = holdings[ticker];
-          const currentPrice = prices[ticker];
-          if (holding.numShares == 0) continue;
-          if (currentPrice === undefined) continue;
+        if (holdings) {
+          for (const ticker of tickers) {
+            const holding = holdings[ticker];
+            const currentPrice = prices[ticker];
 
-          const currentValue = holding.numShares * currentPrice;
-          const gainLoss = currentValue - holding.purchaseValue;
-          const percentChange = (gainLoss / holding.purchaseValue) * 100;
+            if (holding.numShares == 0) continue;
+            if (currentPrice === undefined) continue;
 
-          dataMap.set(ticker, {
-            ...holding,
-            currentPrice,
-            currentValue,
-            gainLoss,
-            percentChange,
-          });
+            const currentValue = holding.numShares * currentPrice;
+            const gainLoss = currentValue - holding.purchaseValue;
+            const percentChange = (gainLoss / holding.purchaseValue) * 100;
+
+            dataMap.set(ticker, {
+              ...holding,
+              currentPrice,
+              currentValue,
+              gainLoss,
+              percentChange,
+            });
+          }
+          setTickers(dataMap);
+          console.log(dataMap);
+        } else {
+          setTickers(Object.create(null));
         }
-        setTickers(dataMap);
-        console.log(dataMap);
       } catch (error) {
         console.error("Error:", error);
-      } finally {
-        setLoading(false);
       }
     };
-
-    fetchiInitial();
-  }, [user?.uid]);
-
-  /**
-   * Effect: Runs whenever `selectedKey` or `user?.uid` changes.
-   * 1. Check if a bot is selected (`selectedKey` is defined).
-   * 2. If so, set the loading state (`loading`) to true.
-   * 3. Call `getBotData(selectedKey)` to retrieve the full bot object from Firestore.
-   *    - This includes fields like name, cash, accountValue, and historical data.
-   * 4. Update `currBot` state with the retrieved bot data.
-   * 5. Set `loading` to false once the operation completes.
-   */
-  useEffect(() => {
-    const fetchBotData = async () => {
-      if (selectedKey) {
-        setLoading(true);
-        const data = await getBotData(selectedKey);
-        setCurrBot(data);
-        setLoading(false);
-      }
-    };
-
+    setLoading(true);
+    fetchHoldingsData(selectedKey as string);
     fetchBotData();
+    setLoading(false);
   }, [selectedKey, user?.uid]);
 
   return (
@@ -293,15 +278,15 @@ export default function Page() {
                       <CarouselPrevious className="absolute left-[-1.5rem] top-1/2 -translate-y-1/2 z-10" />
                       <CarouselNext className="absolute right-[-1.5rem] top-1/2 -translate-y-1/2 z-10" />
                     </Carousel>
-                    {/* Transaction history table that shows if there is a value for the selectedKey useState variable */}
-                    <div className="mt-10 mb-10">
-                      <h1 className="text-white text-xl my-8">
-                        Transaction History
-                      </h1>
-                      <TradeTable botId={selectedKey} />
-                    </div>
                   </div>
                 )}
+                {/* Transaction history table that shows if there is a value for the selectedKey useState variable */}
+                <div className="mt-10 mb-10">
+                  <h1 className="text-white text-xl my-8">
+                    Transaction History
+                  </h1>
+                  <TradeTable botId={selectedKey} />
+                </div>
               </>
             ) : (
               /* Display when no bot is selected telling the user to create a bot or shows the loading screen if the loading state is true */
