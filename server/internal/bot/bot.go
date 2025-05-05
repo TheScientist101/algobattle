@@ -157,6 +157,7 @@ func (bw *BotWorker) calculateAccountValue(doc *firestore.DocumentSnapshot) {
 // Returns false if any ticker data is missing
 func (bw *BotWorker) calculatePortfolioValue(portfolio *models.Portfolio, portfolioID string) bool {
 	portfolio.AccountValue = portfolio.Cash
+	hasAllData := true
 
 	for ticker, holding := range portfolio.Holdings {
 		price, ok := bw.latestPrices[ticker]
@@ -168,13 +169,13 @@ func (bw *BotWorker) calculatePortfolioValue(portfolio *models.Portfolio, portfo
 			if err != nil {
 				log.Printf("error while adding ticker: %v\n", err)
 			}
-			return false
+			hasAllData = false
 		}
 
 		portfolio.AccountValue += holding.NumShares * price
 	}
 
-	return true
+	return hasAllData
 }
 
 // updateHistoricalValue updates the historical account value records
@@ -424,10 +425,10 @@ func (bw *BotWorker) parseTransactionRequest(c *gin.Context) (*TransactionReques
 
 // createAndExecuteTransaction creates and executes a transaction
 func (bw *BotWorker) createAndExecuteTransaction(
-	c *gin.Context, 
-	portfolio *models.Portfolio, 
-	request *TransactionRequestData, 
-	cost float64, 
+	c *gin.Context,
+	portfolio *models.Portfolio,
+	request *TransactionRequestData,
+	cost float64,
 	ref *firestore.DocumentRef,
 ) (*models.Transaction, bool) {
 	// Create the transaction object
@@ -452,8 +453,8 @@ func (bw *BotWorker) createAndExecuteTransaction(
 
 // saveTransactionToDatabase saves the transaction to the database
 func (bw *BotWorker) saveTransactionToDatabase(
-	c *gin.Context, 
-	portfolio *models.Portfolio, 
+	c *gin.Context,
+	portfolio *models.Portfolio,
 	transaction *models.Transaction,
 ) bool {
 	// Save the transaction to the database
