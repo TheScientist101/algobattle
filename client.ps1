@@ -12,7 +12,9 @@ try {
     # Get API key from user
     Write-Host "Please enter your AlgoBattle API key:" -ForegroundColor Yellow
     $SECURE_API_KEY = Read-Host -AsSecureString
-    $API_KEY = ConvertFrom-SecureString -SecureString $SECURE_API_KEY -AsPlainText
+    $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($SECURE_API_KEY)
+    $API_KEY = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
+    # $API_KEY = ConvertFrom-SecureString -SecureString $SECURE_API_KEY -AsPlainText
     Write-Host
 
     if (-not $API_KEY) {
