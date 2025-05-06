@@ -37,14 +37,20 @@ export async function createBot(botName: string, user: string): Promise<void> {
   const botId = v4();
   const botRef = doc(db, "bots", botId);
 
+  const initialHistoricalAccountValue = {
+    date: Timestamp.fromDate(new Date()), 
+    value: 2000
+  };
+  
   const botData = {
     name: botName,
     apiKey: botId,
     owner: user,
+    accountValue:2000, 
     transactions: [],
     holdings: [],
     cash: 2000,
-    historicalAccountValue: [],
+    historicalAccountValue: [initialHistoricalAccountValue],
   };
 
   await setDoc(botRef, botData);
