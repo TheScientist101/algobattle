@@ -72,3 +72,27 @@ export type LeaderboardEntry = {
 export type WithBot = {
   botId: string;
 };
+
+/**
+ * Holds the information for the card of a bot at the top of the screen.
+ */
+export type BotInfoCardProps = {
+  bots: Bot[]; 
+  selectedKey: string;
+  onSelect: (key: string) => void; 
+  currentBot: Bot; 
+}
+
+/**
+ * Holds the information for the NoBot component (the function to create a bot and the loadings state)
+ */
+export type NoBotPromptProps = {
+  onCreate: (name: string) => void;
+}
+
+/**
+ * Holds the information for each holding (all in a map)
+ */
+export type HoldingsCarouselProps = {
+  holdings: Map<string, CompleteHoldingData>; 
+}

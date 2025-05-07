@@ -92,7 +92,7 @@ export async function getBots(user: string): Promise<Bot[]> {
 
   if (!botRefs || !Array.isArray(botRefs)) {
     console.warn("No bots found in user document.");
-    return [];
+    return [] as Bot[]; 
   }
 
   const botSnaps = await Promise.all(botRefs.map((ref) => getDoc(ref)));
