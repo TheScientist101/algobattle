@@ -10,8 +10,8 @@ import { HoldingsCarouselProps } from "@/utils/types";
 
 /**
  * Displays a horizontal scrollable carousel of the current stock holdings for a bot.
- * 
- * - Uses a `Map` (first advanced data structure) to hold ticker info f
+ *
+ * - Uses a `Map` (first advanced data structure) to hold ticker info
  * - Shows detailed metrics per ticker: current value, original purchase value, change, and percent gain/loss.
  */
 export function HoldingsCarousel({ holdings }: HoldingsCarouselProps) {
@@ -95,9 +95,13 @@ export function HoldingsCarousel({ holdings }: HoldingsCarouselProps) {
           ))}
         </CarouselContent>
 
-        {/* Carousel navigation arrows */}
-        <CarouselPrevious className="absolute left-[-1.5rem] top-1/2 -translate-y-1/2 z-10" />
-        <CarouselNext className="absolute right-[-1.5rem] top-1/2 -translate-y-1/2 z-10" />
+        {/* Carousel navigation arrows that appear if there is a need to scroll (more than 4 cards) */}
+        {holdings.size > 4 && (
+          <>
+            <CarouselPrevious className="absolute left-[-1.5rem] top-1/2 -translate-y-1/2 z-10" />
+            <CarouselNext className="absolute right-[-1.5rem] top-1/2 -translate-y-1/2 z-10" />
+          </>
+        )}
       </Carousel>
     </div>
   );

@@ -17,22 +17,31 @@ import {
 import { useAuth } from "@/hooks/authContext";
 
 /**
- * Renders the persistent sidebar used throughout the app.
- * 
- * - Displays a top logo/header
- * - Provides main navigation links ( Dashboard, Leaderboard)
- * - Shows the currently authenticated user's avatar and name in the footer
- * 
- * Pulls user data from Firebase Auth via `useAuth` and passes props to `Sidebar`.
+ * Renders the app's persistent sidebar for layout and navigation.
+ *
+ * - Contains a logo/header section at the top.
+ * - Provides main navigation items (e.g., Dashboard, Leaderboard).
+ * - Displays the current user's avatar and name in the footer.
+ *
+ * Pulls user data via Firebase Auth (`useAuth`) and populates:
+ * - Navigation via `NavMain` (with optional `onBotCreated` handler for bot creation)
+ * - User identity via `NavUser` in the sidebar footer
+ *
+ * Props:
+ * @param onBotCreated - Optional callback triggered when a bot is successfully created
+ * @param ...props - Additional props passed to the `Sidebar` component (e.g., className)
  */
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { user } = useAuth();
+export function AppSidebar({
+  onBotCreated,
+  ...props
+}: React.ComponentProps<typeof Sidebar> & { onBotCreated?: () => void }) {
+  const { user } = useAuth(); // Access authenticated user info
 
-  // Prepare sidebar data for navigation and user section
+  // Compose sidebar content using user data and static routes
   const data = {
     user: {
-      name: user?.displayName || "Hey there!", 
-      avatar: `https://robohash.org/${user?.uid}`, 
+      name: user?.displayName || "Hey there!", // Fallback if display name is missing
+      avatar: `https://robohash.org/${user?.uid}`, // Dynamically generate avatar using UID
     },
     navMain: [
       {
@@ -50,7 +59,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
-      {/* Sidebar top section with app name */}
+      {/* Top: App name/logo section */}
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -66,12 +75,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
 
-      {/* Sidebar middle section with navigation links */}
+      {/* Middle: Navigation items like Dashboard, Leaderboard */}
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <NavMain items={data.navMain} onBotCreated={onBotCreated} />
       </SidebarContent>
 
-      {/* Sidebar bottom section with user dropdown menu */}
+      {/* Bottom: User avatar and name dropdown */}
       <SidebarFooter>
         <NavUser person={data.user} />
       </SidebarFooter>

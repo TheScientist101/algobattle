@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getBotHistory } from "@/utils/botData";
 import { WithBot } from "@/utils/types";
 
@@ -58,6 +58,9 @@ export function ChartAreaInteractive({ botId }: WithBot) {
   const [historicalData, setHistoricalData] = useState<
     { date: string; value: number }[]
   >([]);
+  const [yDomain, setYDomain] = useState<
+    ["auto", (dataMax: number) => number] | [number, number] //y axis scaled domain
+  >(["auto", (dataMax) => dataMax * 1.05]);
 
   /**
    * useEffect: Fetches historical bot data on mount or when `botId` changes.
@@ -77,28 +80,65 @@ export function ChartAreaInteractive({ botId }: WithBot) {
   }, [isMobile]);
 
   /**
-   * Filter the full dataset based on the selected time range.
-   * Only includes entries within the last 7, 30, or 90 days.
+   * Filters historical bot data based on the selected time range (7d, 30d, 90d),
+   * and ensures at least two points exist for rendering a valid area chart.
+   *
+   * - If only one data point exists, a duplicate is created one day prior to allow chart rendering.
+   * - The filtered result is memoized to prevent unnecessary recalculations and re-renders.
    */
-  const filteredData = historicalData.filter((item) => {
-    const parsedDate = new Date(item.date);
-    if (isNaN(parsedDate.getTime())) return false;
+  const filteredData = useMemo(() => {
+    let result = historicalData.filter((item) => {
+      const parsedDate = new Date(item.date);
+      if (isNaN(parsedDate.getTime())) return false;
 
-    const referenceDate = new Date();
-    let daysToSubtract = 90;
+      const referenceDate = new Date();
+      let daysToSubtract = 90;
+      if (timeRange === "30d") daysToSubtract = 30;
+      else if (timeRange === "7d") daysToSubtract = 7;
 
-    if (timeRange === "30d") {
-      daysToSubtract = 30;
-    } else if (timeRange === "7d") {
-      daysToSubtract = 7;
+      const startDate = new Date(
+        referenceDate.getTime() - daysToSubtract * 86400000
+      );
+      return parsedDate >= startDate;
+    });
+
+    // If only one point is available, duplicate it one day earlier for chart compatibility
+    if (result.length === 1) {
+      const single = result[0];
+      const originalDate = new Date(single.date);
+      const extraDate = new Date(originalDate.getTime() - 86400000); // 1 day before
+
+      result = [
+        {
+          ...single,
+          date: extraDate.toISOString(),
+        },
+        single,
+      ];
     }
 
-    const startDate = new Date(
-      referenceDate.getTime() - daysToSubtract * 24 * 60 * 60 * 1000
-    );
+    return result;
+  }, [historicalData, timeRange]);
 
-    return parsedDate >= startDate;
-  });
+  /**
+   * Dynamically adjusts the Y-axis domain based on the data:
+   * - If all values are identical and not zero, the chart is centered vertically for visual clarity.
+   * - Otherwise, uses an auto-scaling upper bound to provide natural spacing above the line.
+   *
+   * Prevents infinite re-renders by only running when `filteredData` changes.
+   */
+  useEffect(() => {
+    if (
+      filteredData.length > 1 &&
+      filteredData.every((d) => d.value === filteredData[0].value) &&
+      filteredData[0].value !== 0
+    ) {
+      const v = filteredData[0].value;
+      setYDomain([0, v * 2]);
+    } else {
+      setYDomain(["auto", (dataMax) => dataMax * 1.05]);
+    }
+  }, [filteredData]);
 
   return (
     // Main container card for the chart
@@ -200,7 +240,7 @@ export function ChartAreaInteractive({ botId }: WithBot) {
 
             {/* Y-axis automatically adjusts to data range */}
             <YAxis
-              domain={["auto", (dataMax: number) => dataMax * 1.05]}
+              domain={yDomain}
               tickLine={false}
               axisLine={false}
               tickMargin={8}

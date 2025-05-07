@@ -1,3 +1,4 @@
+//Dashboard page
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -5,7 +6,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ChartAreaInteractive } from "@/components/chart-area-interactive";
 import { Bot, CompleteHoldingData, Holdings } from "@/utils/types";
-import { createBot, getBotData, getBots, getHoldings } from "@/utils/botData";
+import { getBotData, getBots, getHoldings } from "@/utils/botData";
 import { TradeTable } from "@/components/data-table";
 import { useAuth } from "@/hooks/authContext";
 import { HoldingsCarousel } from "@/components/bot-holdings";
@@ -32,7 +33,7 @@ export default function Page() {
    */
   useEffect(() => {
     const fetchInitial = async () => {
-      setLoading(true); 
+      setLoading(true);
       const data = await getBots(user?.uid as string);
       setCards(data);
       if (data.length > 0) setSelectedKey(data[0].apiKey);
@@ -43,7 +44,7 @@ export default function Page() {
 
   //Runs whenever `selectedKey` (the selected bot) changes.
   useEffect(() => {
-    if (!selectedKey) return; 
+    if (!selectedKey) return;
     /**
      * - Check if a bot is selected (`selectedKey` is defined).
      * - Call `getBotData(selectedKey)` to retrieve the full bot object from Firestore.
@@ -116,10 +117,25 @@ export default function Page() {
     setLoading(false);
   }, [selectedKey, user?.uid]);
 
+  /**
+   * Refetches bots to update display
+   * Called when a new bot is added
+   */
+  const updateBots = async() => {
+    setLoading(true);
+    const updatedBots = await getBots(user?.uid as string);
+    setCards(updatedBots);
+    if (updatedBots.length > 0) setSelectedKey(updatedBots[0].apiKey);
+    setLoading(false);
+  }
+
   return (
     <SidebarProvider className="dark">
-      {/* Sidebar component */}
-      <AppSidebar variant="inset" />
+      {/* Sidebar component with callback function set to refresh bot selections after a bot has been created */}
+      <AppSidebar
+        variant="inset"
+        onBotCreated={updateBots}
+      />
 
       {/* Main content area */}
       <SidebarInset>
@@ -158,13 +174,7 @@ export default function Page() {
                 {/* Upload the bot to firebase and display it when the bot is created on the NoBotPrompt component */}
                 {!loading && (
                   <NoBotPrompt
-                    onCreate={async (botName) => {
-                      await createBot(botName, user?.uid as string);
-                      const updatedBots = await getBots(user?.uid as string);
-                      setCards(updatedBots);
-                      if (updatedBots.length > 0)
-                        setSelectedKey(updatedBots[0].apiKey);
-                    }}
+                    onCreate={updateBots}
                   />
                 )}
               </div>
